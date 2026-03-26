@@ -718,7 +718,7 @@ namespace LMCIS.Order_Management
             this.lblCorpName.Name = "lblCorpName";
             this.lblCorpName.Size = new System.Drawing.Size(163, 52);
             this.lblCorpName.TabIndex = 10;
-            this.lblCorpName.Text = "Legend Motor Company";
+            this.lblCorpName.Text = "AutoNexus";
             this.lblCorpName.Click += new System.EventHandler(this.lblCorpName_Click);
             // 
             // btnFunction4
@@ -853,7 +853,7 @@ namespace LMCIS.Order_Management
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Location = new System.Drawing.Point(15, 15);
             this.Name = "customerEditOrder";
-            this.Text = "Legend Motor Company Integrated System";
+            this.Text = "AutoNexus Business Management System";
             this.Load += new System.EventHandler(this.customerEditOrder_Load);
             this.grpSparePart.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.picTick)).EndInit();

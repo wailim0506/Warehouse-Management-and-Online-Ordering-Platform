@@ -598,7 +598,7 @@ namespace LMCIS.Online_Ordering_Platform
             this.lblCorpName.Name = "lblCorpName";
             this.lblCorpName.Size = new System.Drawing.Size(163, 52);
             this.lblCorpName.TabIndex = 10;
-            this.lblCorpName.Text = "Legend Motor Company";
+            this.lblCorpName.Text = "AutoNexus";
             this.lblCorpName.Click += new System.EventHandler(this.lblCorpName_Click);
             // 
             // btnFunction4
@@ -705,7 +705,7 @@ namespace LMCIS.Online_Ordering_Platform
             this.Controls.Add(this.btnBackViewPart);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "AddPartToExistingOrder";
-            this.Text = "Legend Motor Company Integrated System";
+            this.Text = "AutoNexus Business Management System";
             this.Load += new System.EventHandler(this.AddPartToExistingOrder_Load);
             ((System.ComponentModel.ISupportInitialize)(this.picSpare)).EndInit();
             this.palLoc.ResumeLayout(false);

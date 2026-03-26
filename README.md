@@ -1,11 +1,13 @@
-# Legend Motor Company Integrated System
+# AutoNexus Business Management System
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+> **Rename rationale**: After reviewing all code in this repository, the project has been renamed from *Legend Motor Company Integrated System (LMCIS)* to **AutoNexus Business Management System (ABMS)**. "Auto" reflects the automotive/motor-company domain while "Nexus" captures the system's role as the central hub connecting orders, inventory, staff, customers, and financials into one integrated platform.
+
 ## Table of Contents
 
-- [Legend Motor Company Integrated System](#legend-motor-company-integrated-system)
+- [AutoNexus Business Management System](#autonexus-business-management-system)
   - [Table of Contents](#table-of-contents)
   - [Overview](#overview)
   - [Features](#features)
@@ -26,7 +28,7 @@
 
 ## Overview
 
-The Legend Motor Company Integrated System is a comprehensive software application designed to streamline the operations of Legend Motor Company. This centralized platform manages various business aspects including order processing, inventory control, customer management, and financial transactions.
+AutoNexus Business Management System (ABMS) is a comprehensive software application designed to streamline the operations of an automotive motor company. This centralized platform manages various business aspects including order processing, inventory control, customer management, and financial transactions.
 
 The system includes modules for:
 - Order Management
@@ -149,3 +151,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - ITP4915M Software Engineering course
 - SE1D Group 4 development team
 - Mock data providers and testers
+- Formerly known as *Legend Motor Company Integrated System (LMCIS)*

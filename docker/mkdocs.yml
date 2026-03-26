@@ -1,13 +1,13 @@
-﻿site_name: Documentation of LMCIS
+﻿site_name: Documentation of ABMS
 site_author: wailim0506, mythic3011, Hwhstudent
 site_description: >-
-  Documentation of Legend Motor Company Integrated System (LMCIS)
+  Documentation of AutoNexus Business Management System (ABMS)
 
-repo_name: Integrated System
+repo_name: AutoNexus BMS
 repo_url: https://github.com/wailim0506/ITP4915M_Project
 dev_addr: 127.0.0.1:8000
 
-copyright: Copyright &copy; 2024 Legend Motor Company
+copyright: Copyright &copy; 2024 AutoNexus
 theme:
   name: material
   favicon: ./assets/images/logo.png
