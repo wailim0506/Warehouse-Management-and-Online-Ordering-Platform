@@ -140,7 +140,7 @@
             this.lblSystemTitle1.Name = "lblSystemTitle1";
             this.lblSystemTitle1.Size = new System.Drawing.Size(380, 49);
             this.lblSystemTitle1.TabIndex = 19;
-            this.lblSystemTitle1.Text = "Legend Motor Company";
+            this.lblSystemTitle1.Text = "AutoNexus";
             // 
             // btnLogin
             // 
@@ -374,7 +374,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Margin = new System.Windows.Forms.Padding(2);
             this.Name = "Login";
-            this.Text = "Legend Motor Company Integrated System";
+            this.Text = "AutoNexus Business Management System";
             this.Load += new System.EventHandler(this.Form1_Load);
             this.palTime.ResumeLayout(false);
             this.palTime.PerformLayout();

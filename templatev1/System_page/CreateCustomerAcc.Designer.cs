@@ -700,7 +700,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Margin = new System.Windows.Forms.Padding(2);
             this.Name = "CreateCustomerAcc";
-            this.Text = "Legend Motor Company Integrated system";
+            this.Text = "AutoNexus Business Management System";
             this.Load += new System.EventHandler(this.Form1_Load);
             this.palTIME.ResumeLayout(false);
             this.palTIME.PerformLayout();

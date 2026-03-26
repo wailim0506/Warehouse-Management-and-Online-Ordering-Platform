@@ -284,7 +284,7 @@ namespace LMCIS.Stock_Manag
             this.lblCorpName.Name = "lblCorpName";
             this.lblCorpName.Size = new System.Drawing.Size(163, 49);
             this.lblCorpName.TabIndex = 10;
-            this.lblCorpName.Text = "Legend Motor Company";
+            this.lblCorpName.Text = "AutoNexus";
             this.lblCorpName.Click += new System.EventHandler(this.lblCorpName_Click);
             // 
             // btnFunction5
@@ -693,7 +693,7 @@ namespace LMCIS.Stock_Manag
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.Name = "viewSupplier";
-            this.Text = "Legend Motor Company Integrated System";
+            this.Text = "AutoNexus Business Management System";
             this.Load += new System.EventHandler(this.viewSupplier_Load);
             this.palLoc.ResumeLayout(false);
             this.palLoc.PerformLayout();

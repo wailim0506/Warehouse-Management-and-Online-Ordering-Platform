@@ -153,7 +153,7 @@
             this.lblCorpName.Name = "lblCorpName";
             this.lblCorpName.Size = new System.Drawing.Size(163, 49);
             this.lblCorpName.TabIndex = 10;
-            this.lblCorpName.Text = "Legend Motor Company";
+            this.lblCorpName.Text = "AutoNexus";
             this.lblCorpName.Click += new System.EventHandler(this.lblCorpName_Click);
             // 
             // btnFunction5
@@ -394,7 +394,7 @@
             this.lblSysName.Name = "lblSysName";
             this.lblSysName.Size = new System.Drawing.Size(353, 26);
             this.lblSysName.TabIndex = 33;
-            this.lblSysName.Text = "Legend Motor Company Integrated System";
+            this.lblSysName.Text = "AutoNexus Business Management System";
             this.lblSysName.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // lblVer
@@ -435,7 +435,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Margin = new System.Windows.Forms.Padding(2);
             this.Name = "About";
-            this.Text = "Legend Motor Company Integrated System";
+            this.Text = "AutoNexus Business Management System";
             this.Load += new System.EventHandler(this.Form1_Load);
             this.palNav.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.picBWMode)).EndInit();

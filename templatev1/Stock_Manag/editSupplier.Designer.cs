@@ -264,7 +264,7 @@ namespace LMCIS.Stock_Manag
             this.lblCorpName.Name = "lblCorpName";
             this.lblCorpName.Size = new System.Drawing.Size(163, 49);
             this.lblCorpName.TabIndex = 10;
-            this.lblCorpName.Text = "Legend Motor Company";
+            this.lblCorpName.Text = "AutoNexus";
             this.lblCorpName.Click += new System.EventHandler(this.lblCorpName_Click);
             // 
             // btnFunction5
