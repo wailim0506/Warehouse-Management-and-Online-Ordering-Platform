@@ -1,21 +1,30 @@
 ---
 title: Troubleshooting
-description: Common local setup failures and their first-line checks.
+description: Detailed checks for local setup and runtime failures.
 ---
 
-## What You'll Do
+This page provides deeper validation steps after symptom lookup.
 
-Diagnose common local setup failures before deeper debugging.
+## Context
 
-- Confirm Docker services are running and healthy.
-- Verify `App.config` connection string matches Docker defaults.
-- Check `3306` and `8080` are not in use by other processes.
-- Confirm Google Maps API key is valid and mapped to Maps Static API.
-- Rebuild services when bootstrap changes:
+Use this page when setup or runtime checks fail and you need direct verification commands.
+
+## Detailed Checks
+
+1. Confirm containers are running and healthy.
+2. Validate `App.config` values for `ConnectionString1` and `GoogleMapsApiKey`.
+3. Check local ports `3306` and `8080` for conflicts.
+4. Rebuild services after config or bootstrap changes:
 
 ```bash
 docker compose -f docker/Docker-compose.yml up --build
 ```
 
-Previous: [Stopping](/installation/stopping/)  
+5. Re-test service endpoints from [Services](/installation/services/).
+
+## Expected Result
+
+- Root cause is isolated to container startup, app config, port conflicts, or API key restrictions.
+
+Previous: [Stopping](/installation/stopping/)
 Next: [Troubleshooting Index](/installation/troubleshooting-index/)

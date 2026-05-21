@@ -1,24 +1,36 @@
 ---
 title: Troubleshooting Index
-description: Symptom-to-action index for common local development issues.
+description: Quick symptom lookup for common local setup problems.
 ---
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-## Symptom To Action
+Use this index first, then open the detailed troubleshooting page for full checks.
+
+## Context
+
+Use this page when you need a fast symptom-to-action lookup before running detailed diagnostics.
+
+## Symptom Lookup
 
 <CardGrid>
   <Card title="Docker services do not start" icon="seti:docker">
-    Check Docker Desktop status, then rerun `docker compose -f docker/Docker-compose.yml up --build`.
+    Confirm Docker Desktop is running, then rerun `docker compose -f docker/Docker-compose.yml up --build`.
   </Card>
   <Card title="Database connection fails" icon="seti:db">
-    Verify `ConnectionString1` in `App.config` and that port `3306` is free.
+    Verify `ConnectionString1` in `App.config` and confirm port `3306` is available.
   </Card>
-  <Card title="phpMyAdmin unreachable" icon="seti:browser">
-    Confirm service startup and check whether port `8080` is occupied.
+  <Card title="phpMyAdmin is unreachable" icon="seti:browser">
+    Confirm stack startup and check whether port `8080` is already occupied.
   </Card>
   <Card title="Map images fail to load" icon="seti:map">
-    Verify `GoogleMapsApiKey` and API restrictions for Maps Static API.
+    Verify `GoogleMapsApiKey` value and Maps Static API restrictions.
   </Card>
 </CardGrid>
 
-Reference page: [Troubleshooting](/installation/troubleshooting/)
+## Expected Result
+
+- You can map the visible symptom to a focused next check in under one minute.
+
+Detailed checks: [Troubleshooting](/installation/troubleshooting/)
+
+Previous: [Troubleshooting](/installation/troubleshooting/)

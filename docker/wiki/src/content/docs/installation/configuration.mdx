@@ -1,19 +1,41 @@
 ---
 title: Configuration
-description: Apply Docker local database connection settings in App.config.
+description: Apply local Docker connection settings in App.config.
 ---
 
-## What You'll Do
+This page applies the local connection string used by the WinForms app.
 
-Configure the connection string used by local Docker services.
+## Context
 
-Configure database connection for Docker local development:
+Use this page after containers are running and before launching the application.
+
+## Steps
+
+1. Open local `App.config`.
+2. Replace `ConnectionString1` with the Docker local value.
+3. Save the file before launching the app.
+
+## Local Connection String
 
 ```xml
 <add key="ConnectionString1" value="server=localhost;port=3306;user id=root;password=rootpassword;database=itp4915m_se1d_group4;charset=utf8;ConnectionTimeout=30"/>
 ```
 
-Keep credentials local-dev only and do not commit production secrets.
+## Value Mapping
 
-Previous: [Database](/installation/database/)  
+- `server=localhost`: connect to local Docker-exposed host.
+- `port=3306`: default MariaDB/MySQL local port.
+- `user id` and `password`: local database credentials.
+- `database=itp4915m_se1d_group4`: expected schema name.
+- `ConnectionTimeout=30`: timeout window for startup and retries.
+
+## Expected Result
+
+- Application startup can connect to the local database without connection errors.
+
+:::caution
+Keep production credentials out of local docs and source control.
+:::
+
+Previous: [Database](/installation/database/)
 Next: [Running](/installation/running/)

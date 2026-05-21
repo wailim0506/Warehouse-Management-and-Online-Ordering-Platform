@@ -1,19 +1,24 @@
 ---
 title: Setup
-description: Prepare local files and baseline App.config values.
+description: Prepare local repository configuration and keep local secrets safe.
 ---
 import { Steps } from '@astrojs/starlight/components';
 
-## What You'll Do
+This page prepares required local config before infrastructure startup.
 
-Clone the repo and initialize `App.config` with local-dev placeholders.
+## Context
+
+Use this page first when starting setup on a new machine or a fresh local checkout.
+
+## Steps
 
 <Steps>
 1. Clone the repository.
 2. Copy `App.config.example` to `App.config`.
+3. Keep local placeholders for API key and connection settings until later setup steps.
 </Steps>
 
-Base `App.config` template:
+Use this baseline `appSettings` template:
 
 ```xml
 <appSettings>
@@ -23,11 +28,13 @@ Base `App.config` template:
 </appSettings>
 ```
 
-Use local development values only. Do not commit real secrets.
+## Expected Result
+
+- `App.config` exists locally and contains local placeholder values only.
 
 :::caution
-Do not commit real API keys or production credentials.
+Do not commit real API keys, production credentials, or customer data.
 :::
 
-Previous: [Installation Overview](/installation/)  
+Previous: [Installation Overview](/installation/)
 Next: [API Key](/installation/api-key/)

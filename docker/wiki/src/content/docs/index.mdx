@@ -1,16 +1,39 @@
 ---
 title: System Overview
-description: Overview of the Legend Motor Company Integrated System and Docker-first documentation scope.
+description: Product and documentation overview for local setup and core user workflows.
 ---
+import { Card, CardGrid } from '@astrojs/starlight/components';
 
-The Legend Motor Company Integrated System is a WinForms-based platform for order processing, inventory control, customer records, and invoicing.
+This wiki explains how to run the Docker-backed local environment and how to complete the main workflows in the WinForms application.
 
-Core modules:
+## Context
+
+Use this documentation when:
+
+- A local developer needs to prepare and run the system with Docker.
+- A staff or tester needs workflow guidance for core product features.
+
+## What The System Covers
+
+The Legend Motor Company Integrated System supports:
 
 - Order management
-- Spare part management
-- Stock management
-- User management
-- Invoice management
+- Spare part and stock management
+- On-sale product ordering
+- Invoice access
+- User and feedback flows
 
-This Starlight wiki is the active documentation site for local development and operations.
+## Where To Go Next
+
+<CardGrid>
+  <Card title="Installation" icon="seti:docker">
+    Follow the Docker-first local setup sequence from preparation to verification.
+  </Card>
+  <Card title="User Guide" icon="seti:book">
+    Follow task-based walkthroughs for login, stock, ordering, invoices, and feedback.
+  </Card>
+</CardGrid>
+
+## Expected Result
+
+- Readers can immediately choose the correct path: local setup (`/installation/`) or feature workflows (`/user-guide/`).

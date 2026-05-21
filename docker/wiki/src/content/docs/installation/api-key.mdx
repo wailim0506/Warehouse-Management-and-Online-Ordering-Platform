@@ -1,27 +1,38 @@
 ---
 title: API Key
-description: Create and configure a Google Maps Static API key for local development.
+description: Configure Google Maps Static API key settings for local development.
 ---
 
-## What You'll Do
+This page explains how to create a Google Maps Static API key and apply it to local app settings.
 
-Create a Google Maps Static API key, restrict it, and place it in `App.config`.
+## Context
 
-To enable map features, create a Google Maps Static API key:
+Use this page when map images or location-related screens need API-backed rendering.
+
+## Steps
 
 1. Open [Google Cloud Console](https://console.cloud.google.com/).
-2. Create/select a project.
-3. Enable Maps Static API.
+2. Create or select a project.
+3. Enable **Maps Static API**.
 4. Create an API key.
-5. Restrict the key to local-dev usage and Maps Static API.
-6. Put the key in `App.config`:
+5. Restrict the key to Maps Static API and approved local usage restrictions.
+6. Update `App.config`:
 
 ```xml
 <add key="GoogleMapsApiKey" value="YOUR_LOCAL_DEV_API_KEY"/>
 ```
 
-![Google Cloud Console](./img/9066d5e10e5000d9fb2b808e6c847acb.png)
-![Create key](./img/fc8f432ff51bf55828e5e9c38e0d2139.png)
+![Google Cloud project and API settings page](./img/google-cloud-console.png)
 
-Previous: [Setup](/installation/setup/)  
+![Google Cloud API key creation dialog](./img/google-cloud-create-key.png)
+
+## Expected Result
+
+- The application can load map images without API authorization failures.
+
+:::caution
+Treat API keys as secrets. Never store real keys in committed source.
+:::
+
+Previous: [Setup](/installation/setup/)
 Next: [Database](/installation/database/)

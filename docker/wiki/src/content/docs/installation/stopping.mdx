@@ -1,11 +1,15 @@
 ---
 title: Stopping
-description: Shut down local application and Docker services safely.
+description: Shut down the local application and Docker services safely.
 ---
 
-## What You'll Do
+This page defines normal shutdown steps for local development sessions.
 
-Stop the application and cleanly tear down local services.
+## Context
+
+Use this flow at the end of a local testing or documentation session.
+
+## Steps
 
 1. Close the WinForms application.
 2. Stop Docker services from repository root:
@@ -14,5 +18,10 @@ Stop the application and cleanly tear down local services.
 docker compose -f docker/Docker-compose.yml down
 ```
 
-Previous: [Services](/installation/services/)  
+## Expected Result
+
+- Application process exits.
+- Docker containers for the local stack stop cleanly.
+
+Previous: [Services](/installation/services/)
 Next: [Troubleshooting](/installation/troubleshooting/)

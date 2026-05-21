@@ -1,17 +1,25 @@
 ---
 title: Services
-description: Local service endpoints used during development.
+description: Endpoint checks for local runtime availability.
 ---
 
-## What You'll Do
+This page lists endpoints to validate local runtime readiness.
 
-Use these endpoints to verify local runtime availability.
+## Context
 
-Local services:
+Use these checks after starting Docker services and before deep troubleshooting.
 
-- WinForms app: `LMCIS-1DG4.exe`
+## Service Endpoints
+
+- WinForms executable: `LMCIS-1DG4.exe`
 - phpMyAdmin: `http://localhost:8080`
-- MariaDB: `localhost:3306`
+- MariaDB host/port: `localhost:3306`
 
-Previous: [Running](/installation/running/)  
+## Expected Result
+
+- phpMyAdmin page loads.
+- Database port `3306` is reachable.
+- Desktop app can complete login without connection errors.
+
+Previous: [Running](/installation/running/)
 Next: [Stopping](/installation/stopping/)

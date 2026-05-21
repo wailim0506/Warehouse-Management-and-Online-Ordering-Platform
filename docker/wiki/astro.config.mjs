@@ -22,27 +22,26 @@ export default defineConfig({
           label: "Getting Started",
           items: [
             { label: "System Overview", slug: "" },
-            {
-              label: "Installation Quick Commands",
-              link: "/installation/quick-commands/",
-            },
+            { label: "Installation Roadmap", link: "/installation/" },
+            { label: "User Guide Overview", link: "/user-guide/" },
           ],
         },
         {
           label: "Installation",
           items: [
             { label: "Overview", slug: "installation" },
+            { label: "Quick Commands", slug: "installation/quick-commands" },
             { label: "Setup", slug: "installation/setup" },
             { label: "API Key", slug: "installation/api-key" },
             { label: "Database", slug: "installation/database" },
             { label: "Configuration", slug: "installation/configuration" },
             { label: "Running", slug: "installation/running" },
-            { label: "Stopping", slug: "installation/stopping" },
             { label: "Services", slug: "installation/services" },
+            { label: "Stopping", slug: "installation/stopping" },
             { label: "Troubleshooting", slug: "installation/troubleshooting" },
             {
               label: "Troubleshooting Index",
-              link: "/installation/troubleshooting-index/",
+              slug: "installation/troubleshooting-index",
             },
           ],
         },
@@ -59,11 +58,11 @@ export default defineConfig({
               label: "On-Sale Product Management",
               slug: "user-guide/on-sale-product-management",
             },
+            { label: "Order Management", slug: "user-guide/order-management" },
             {
               label: "Invoice Management",
               slug: "user-guide/invoice-management",
             },
-            { label: "Order Management", slug: "user-guide/order-management" },
             {
               label: "Feedback Management",
               slug: "user-guide/feedback-management",

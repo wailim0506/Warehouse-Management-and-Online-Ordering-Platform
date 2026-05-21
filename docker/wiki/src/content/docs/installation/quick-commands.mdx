@@ -1,43 +1,48 @@
 ---
 title: Installation Quick Commands
-description: Copy-ready commands for Docker-first local setup and verification.
+description: Copy-ready command groups for local stack control and wiki operations.
 ---
-import { Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-## What You'll Do
+This page provides grouped commands for the most common local operations.
 
-- Start local services
-- Stop local services
-- Open documentation wiki locally
+## Context
+
+Use these commands after you complete local config and when operating the Docker-backed environment.
 
 :::tip
 Run Docker commands from the repository root.
 :::
 
-## Commands
-
-<Badge text="Docker-first" variant="tip" />
-
-<Tabs>
-  <TabItem label="Start">
+## Start Stack
 
 ```bash
 docker compose -f docker/Docker-compose.yml up --build
 ```
 
-  </TabItem>
-  <TabItem label="Stop">
+## Stop Stack
 
 ```bash
 docker compose -f docker/Docker-compose.yml down
 ```
 
-  </TabItem>
-  <TabItem label="Build Wiki">
+## Build Wiki
 
 ```bash
 cd docker/wiki
 npm run build
 ```
-  </TabItem>
-</Tabs>
+
+## Preview Wiki
+
+```bash
+cd docker/wiki
+npm run preview
+```
+
+## Expected Result
+
+- Docker containers start or stop without errors.
+- Wiki build or preview commands complete successfully.
+
+Previous: [Installation Overview](/installation/)
+Next: [Setup](/installation/setup/)
