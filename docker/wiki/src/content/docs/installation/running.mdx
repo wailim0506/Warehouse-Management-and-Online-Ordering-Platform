@@ -1,0 +1,20 @@
+---
+title: Running
+description: Start required services and launch the WinForms application.
+---
+
+## What You'll Do
+
+Bring up Docker services and run the desktop app against local infrastructure.
+
+1. Start Docker services:
+
+```bash
+docker compose -f docker/Docker-compose.yml up --build
+```
+
+2. Build and run the WinForms app from Visual Studio or project tooling.
+3. Launch `LMCIS-1DG4.exe` after services are healthy.
+
+Previous: [Configuration](/installation/configuration/)  
+Next: [Services](/installation/services/)

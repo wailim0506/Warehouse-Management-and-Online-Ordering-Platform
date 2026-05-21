@@ -93,23 +93,17 @@ The setup process involves:
    - Enable the Google Maps Static API
    - Generate and configure your API key
 
-3. **Database Setup (Choose one method)**
-   
-   **Method 1: Using XAMPP**
-   - Install XAMPP
-   - Import the provided SQL schema (setup.sql)
-   - Configure the application to connect to your local database
-
-   **Method 2: Using Docker**
+3. **Database Setup (Docker - Active Path)**
    - Install Docker Desktop
-   - Run the provided Docker Compose configuration
+   - Run the provided Docker Compose configuration:
+     `docker compose -f docker/Docker-compose.yml up --build`
    - The database will be automatically set up with the required schema
 
 4. **Running the Application**
    - Launch the WinForms application
    - Log in with the provided default credentials
 
-For detailed installation instructions, refer to the [Installation Guide](docker/docs/Installation/index.md).
+For detailed installation instructions, refer to the [Docker Wiki](docker/wiki/README.md).
 
 ## Architecture
 

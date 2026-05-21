@@ -1,0 +1,19 @@
+---
+title: Configuration
+description: Apply Docker local database connection settings in App.config.
+---
+
+## What You'll Do
+
+Configure the connection string used by local Docker services.
+
+Configure database connection for Docker local development:
+
+```xml
+<add key="ConnectionString1" value="server=localhost;port=3306;user id=root;password=rootpassword;database=itp4915m_se1d_group4;charset=utf8;ConnectionTimeout=30"/>
+```
+
+Keep credentials local-dev only and do not commit production secrets.
+
+Previous: [Database](/installation/database/)  
+Next: [Running](/installation/running/)

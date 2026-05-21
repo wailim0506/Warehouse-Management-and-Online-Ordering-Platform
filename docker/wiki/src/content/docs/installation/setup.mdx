@@ -1,0 +1,33 @@
+---
+title: Setup
+description: Prepare local files and baseline App.config values.
+---
+import { Steps } from '@astrojs/starlight/components';
+
+## What You'll Do
+
+Clone the repo and initialize `App.config` with local-dev placeholders.
+
+<Steps>
+1. Clone the repository.
+2. Copy `App.config.example` to `App.config`.
+</Steps>
+
+Base `App.config` template:
+
+```xml
+<appSettings>
+  <add key="DevMode" value="True"/>
+  <add key="GoogleMapsApiKey" value="YOUR_LOCAL_DEV_API_KEY"/>
+  <add key="ConnectionString1" value="server=localhost;port=3306;user id=root;password=rootpassword;database=itp4915m_se1d_group4;charset=utf8;ConnectionTimeout=30"/>
+</appSettings>
+```
+
+Use local development values only. Do not commit real secrets.
+
+:::caution
+Do not commit real API keys or production credentials.
+:::
+
+Previous: [Installation Overview](/installation/)  
+Next: [API Key](/installation/api-key/)

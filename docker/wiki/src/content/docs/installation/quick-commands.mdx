@@ -1,0 +1,43 @@
+---
+title: Installation Quick Commands
+description: Copy-ready commands for Docker-first local setup and verification.
+---
+import { Tabs, TabItem, Badge } from '@astrojs/starlight/components';
+
+## What You'll Do
+
+- Start local services
+- Stop local services
+- Open documentation wiki locally
+
+:::tip
+Run Docker commands from the repository root.
+:::
+
+## Commands
+
+<Badge text="Docker-first" variant="tip" />
+
+<Tabs>
+  <TabItem label="Start">
+
+```bash
+docker compose -f docker/Docker-compose.yml up --build
+```
+
+  </TabItem>
+  <TabItem label="Stop">
+
+```bash
+docker compose -f docker/Docker-compose.yml down
+```
+
+  </TabItem>
+  <TabItem label="Build Wiki">
+
+```bash
+cd docker/wiki
+npm run build
+```
+  </TabItem>
+</Tabs>

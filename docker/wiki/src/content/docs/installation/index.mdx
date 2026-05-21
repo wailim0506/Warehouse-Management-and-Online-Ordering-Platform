@@ -1,0 +1,33 @@
+---
+title: Installation Overview
+description: Docker-first local setup flow for the project.
+---
+import { Card, CardGrid, LinkButton } from '@astrojs/starlight/components';
+
+## What You'll Do
+
+Set up local prerequisites, configure app settings, start Docker services, and run the WinForms app.
+
+Use this sequence for local setup:
+
+1. Complete repository and app setup.
+2. Obtain a Google Maps Static API key.
+3. Start the database and services with Docker Compose.
+4. Configure `App.config`.
+5. Run the WinForms app.
+
+Docker is the default setup path in this repository.
+
+<CardGrid>
+  <Card title="Start Here" icon="seti:gear">
+    Prepare `App.config` and local placeholders.
+  </Card>
+  <Card title="Infrastructure" icon="seti:docker">
+    Start Docker services with the project compose file.
+  </Card>
+  <Card title="Validation" icon="seti:terminal">
+    Run app and verify service endpoints.
+  </Card>
+</CardGrid>
+
+<LinkButton href="/installation/setup/">Continue to Setup</LinkButton>

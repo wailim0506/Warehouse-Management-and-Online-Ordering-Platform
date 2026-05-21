@@ -410,3 +410,5 @@ fabric.properties
 .idea/discord.xml
 *.tlog
 .vshistory/
+AGENTS.md
+docs/templatev1-controller-ui-review.md

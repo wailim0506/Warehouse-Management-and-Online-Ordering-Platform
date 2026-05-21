@@ -1,0 +1,21 @@
+---
+title: Troubleshooting
+description: Common local setup failures and their first-line checks.
+---
+
+## What You'll Do
+
+Diagnose common local setup failures before deeper debugging.
+
+- Confirm Docker services are running and healthy.
+- Verify `App.config` connection string matches Docker defaults.
+- Check `3306` and `8080` are not in use by other processes.
+- Confirm Google Maps API key is valid and mapped to Maps Static API.
+- Rebuild services when bootstrap changes:
+
+```bash
+docker compose -f docker/Docker-compose.yml up --build
+```
+
+Previous: [Stopping](/installation/stopping/)  
+Next: [Troubleshooting Index](/installation/troubleshooting-index/)

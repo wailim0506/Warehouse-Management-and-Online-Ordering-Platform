@@ -1,0 +1,29 @@
+---
+title: Database
+description: Start and verify the Docker-based local database stack.
+---
+
+## What You'll Do
+
+Start Docker services and verify database access endpoints.
+
+Docker is the active database setup path.
+
+1. Ensure Docker Desktop is running.
+2. From repository root, start services:
+
+```bash
+docker compose -f docker/Docker-compose.yml up --build
+```
+
+3. Database bootstrap scripts in `sql-scripts/` are loaded by the compose stack.
+4. Access phpMyAdmin at `http://localhost:8080` when needed.
+
+Optional advanced clustering is out of scope for default local setup.
+
+:::tip
+If ports are occupied, stop conflicting local services before rerunning compose.
+:::
+
+Previous: [API Key](/installation/api-key/)  
+Next: [Configuration](/installation/configuration/)

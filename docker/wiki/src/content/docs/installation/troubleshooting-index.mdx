@@ -1,0 +1,24 @@
+---
+title: Troubleshooting Index
+description: Symptom-to-action index for common local development issues.
+---
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Symptom To Action
+
+<CardGrid>
+  <Card title="Docker services do not start" icon="seti:docker">
+    Check Docker Desktop status, then rerun `docker compose -f docker/Docker-compose.yml up --build`.
+  </Card>
+  <Card title="Database connection fails" icon="seti:db">
+    Verify `ConnectionString1` in `App.config` and that port `3306` is free.
+  </Card>
+  <Card title="phpMyAdmin unreachable" icon="seti:browser">
+    Confirm service startup and check whether port `8080` is occupied.
+  </Card>
+  <Card title="Map images fail to load" icon="seti:map">
+    Verify `GoogleMapsApiKey` and API restrictions for Maps Static API.
+  </Card>
+</CardGrid>
+
+Reference page: [Troubleshooting](/installation/troubleshooting/)
