@@ -16,6 +16,7 @@ namespace LMCIS.controller
         public DataTable getData(string id, string sortBy, string status, bool isManager) //id = staff id
         {
             string sqlCmd = "";
+            var parameters = new Dictionary<string, object>();
             var sortByOptions = new Dictionary<string, string>
             {
                 { "IN", "x.invoiceNumber" },
@@ -30,23 +31,25 @@ namespace LMCIS.controller
 
 
             sqlCmd +=
-                $"SELECT x.orderID,x.invoiceNumber,x.status, y.orderDate, z.shippingDate FROM invoice x, order_ y, " +
-                $"shipping_detail z, staff_account aa WHERE x.orderID = y.orderID AND y.orderID = z.orderID AND y.staffAccountID = aa.staffAccountID " +
-                $"AND y.status = \'Shipped\'";
+                "SELECT x.orderID,x.invoiceNumber,x.status, y.orderDate, z.shippingDate FROM invoice x, order_ y, " +
+                "shipping_detail z, staff_account aa WHERE x.orderID = y.orderID AND y.orderID = z.orderID AND y.staffAccountID = aa.staffAccountID " +
+                "AND y.status = 'Shipped'";
 
-            sqlCmd += !isManager
-                ? $" AND aa.staffID = \'{id}\'"
-                : "";
+            if (!isManager)
+            {
+                sqlCmd += " AND aa.staffID = @staffID";
+                parameters.Add("@staffID", id);
+            }
 
             if (status != "All")
             {
                 switch (status)
                 {
                     case "Confirmed":
-                        sqlCmd += $" AND x.status = \'confirmed\'";
+                        sqlCmd += " AND x.status = 'confirmed'";
                         break;
                     case "Not Confirmed":
-                        sqlCmd += $" AND x.status IS NULL";
+                        sqlCmd += " AND x.status IS NULL";
                         break;
                 }
             }
@@ -56,7 +59,7 @@ namespace LMCIS.controller
                 sqlCmd += $" ORDER BY {sortByOptions[sortBy]}";
             }
 
-            return _db.ExecuteDataTable(sqlCmd, null);
+            return _db.ExecuteDataTable(sqlCmd, parameters.Count == 0 ? null : parameters);
         }
     }
 }

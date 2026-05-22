@@ -1,4 +1,5 @@
-﻿using System.Dynamic;
+﻿using System.Collections.Generic;
+using System.Dynamic;
 using LMCIS.controller.Utilities;
 
 namespace LMCIS.controller
@@ -27,10 +28,13 @@ namespace LMCIS.controller
         {
             AccountType = UserID.StartsWith("LMC") ? "Customer" : "Staff";
             string permissionIDQuery =
-                $"SELECT permissionID FROM staff_account_permission SP, staff_account S WHERE SP.staffAccountID = S.staffAccountID AND S.staffID = \'{UserID}\'";
+                "SELECT permissionID FROM staff_account_permission SP, staff_account S WHERE SP.staffAccountID = S.staffAccountID AND S.staffID = @staffID";
             permission = AccountType.Equals("Customer")
                 ? "C"
-                : DB.ExecuteDataTable(permissionIDQuery).Rows[0]["permissionID"].ToString();
+                : DB.ExecuteDataTable(permissionIDQuery, new Dictionary<string, object>
+                {
+                    { "@staffID", UserID }
+                }).Rows[0]["permissionID"].ToString();
             DetermineFun(permission);
         }
 

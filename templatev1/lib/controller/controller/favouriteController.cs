@@ -19,16 +19,22 @@ namespace LMCIS.controller
         public DataTable GetFavourite(string id) //customer id
         {
             sqlCmd =
-                $"SELECT * FROM favourite x, product y, spare_part z, category zz " +
-                $"WHERE x.customerID = \'{id}\' AND x.itemID = y.itemID AND y.partNumber = z.partNumber AND z.categoryID = zz.categoryID";
-            DataTable dt = _database.ExecuteDataTable(sqlCmd);
+                "SELECT * FROM favourite x, product y, spare_part z, category zz " +
+                "WHERE x.customerID = @customerID AND x.itemID = y.itemID AND y.partNumber = z.partNumber AND z.categoryID = zz.categoryID";
+            DataTable dt = _database.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@customerID", id }
+            });
             return dt;
         }
 
         public Boolean RemoveFromFavourite(string num, string id) //partNum , customerID
         {
-            sqlCmd = $"SELECT itemID FROM product WHERE partNumber = \'{num}\' ";
-            DataTable dt = _database.ExecuteDataTable(sqlCmd);
+            sqlCmd = "SELECT itemID FROM product WHERE partNumber = @partNumber";
+            DataTable dt = _database.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@partNumber", num }
+            });
             string itemID = dt.Rows[0][0].ToString();
 
             sqlCmd = "DELETE FROM favourite WHERE itemID = @id AND customerID = @cid";
@@ -53,16 +59,22 @@ namespace LMCIS.controller
         public DataTable GetFavouriteWhenTextChange(string id, string category, string kw, string sorting)
         {
             sqlCmd =
-                $"SELECT * FROM favourite x, product y, spare_part z, category zz " +
-                $"WHERE x.customerID = \'{id}\' AND x.itemID = y.itemID AND y.partNumber = z.partNumber AND z.categoryID = zz.categoryID";
+                "SELECT * FROM favourite x, product y, spare_part z, category zz " +
+                "WHERE x.customerID = @customerID AND x.itemID = y.itemID AND y.partNumber = z.partNumber AND z.categoryID = zz.categoryID";
+            var parameters = new Dictionary<string, object>
+            {
+                { "@customerID", id }
+            };
             if (category != "All")
             {
-                sqlCmd += $" AND z.categoryID = '{category}'";
+                sqlCmd += " AND z.categoryID = @categoryID";
+                parameters.Add("@categoryID", category);
             }
 
             if (kw != "")
             {
-                sqlCmd += $" AND z.name LIKE '%{kw}%'";
+                sqlCmd += " AND z.name LIKE @nameLike";
+                parameters.Add("@nameLike", "%" + kw + "%");
             }
 
             switch (sorting)
@@ -78,15 +90,19 @@ namespace LMCIS.controller
                     break;
             }
 
-            DataTable dt = _database.ExecuteDataTable(sqlCmd);
+            DataTable dt = _database.ExecuteDataTable(sqlCmd, parameters);
             return dt;
         }
 
         public Boolean IsFavourite(string num, string id) //part num, customer id
         {
             sqlCmd =
-                $"SELECT * FROM favourite x, product y WHERE x.itemID = y.itemID AND partNumber = '{num}' AND x.customerID = \'{id}\';";
-            DataTable dt = _database.ExecuteDataTable(sqlCmd);
+                "SELECT * FROM favourite x, product y WHERE x.itemID = y.itemID AND partNumber = @partNumber AND x.customerID = @customerID;";
+            DataTable dt = _database.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@partNumber", num },
+                { "@customerID", id }
+            });
             if (dt.Rows.Count != 0)
             {
                 return true;
@@ -97,8 +113,11 @@ namespace LMCIS.controller
 
         public Boolean AddToFavourite(string num, string id) //partNum , customerID
         {
-            sqlCmd = $"SELECT itemID FROM product WHERE partNumber = \'{num}\' ";
-            DataTable dt = _database.ExecuteDataTable(sqlCmd);
+            sqlCmd = "SELECT itemID FROM product WHERE partNumber = @partNumber";
+            DataTable dt = _database.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@partNumber", num }
+            });
             string itemID = dt.Rows[0][0].ToString();
 
             sqlCmd = "INSERT INTO favourite (customerID,itemID) VALUES (@cid,@id);";

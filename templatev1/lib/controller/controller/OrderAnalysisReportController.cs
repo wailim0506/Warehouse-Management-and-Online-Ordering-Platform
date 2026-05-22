@@ -23,7 +23,8 @@ namespace LMCIS.controller
         public DataTable GenerateReport(string period, DateTime startDate, DateTime endDate)
         {
             var query =
-                $"SELECT OrderID, CustomerName, OrderDate, OrderStatus FROM shippedordertotals WHERE OrderDate BETWEEN @StartDate AND @EndDate AND {GetPeriodCondition(period)}";
+                "SELECT OrderID, CustomerName, OrderDate, OrderStatus FROM shippedordertotals WHERE OrderDate BETWEEN @StartDate AND @EndDate AND " +
+                GetPeriodCondition(period);
             var parameters = new Dictionary<string, object> { { "@StartDate", startDate }, { "@EndDate", endDate } };
             AddPeriodParameters(parameters, period, startDate);
             return _database.ExecuteDataTable(query, parameters);
@@ -60,7 +61,8 @@ namespace LMCIS.controller
         public DataTable GenerateItemReport(string period, DateTime startDate, DateTime endDate)
         {
             var query =
-                $"SELECT * FROM orderitemanalysis WHERE OrderDate BETWEEN @StartDate AND @EndDate AND {GetPeriodCondition(period)}";
+                "SELECT * FROM orderitemanalysis WHERE OrderDate BETWEEN @StartDate AND @EndDate AND " +
+                GetPeriodCondition(period);
             var parameters = new Dictionary<string, object> { { "@StartDate", startDate }, { "@EndDate", endDate } };
             AddPeriodParameters(parameters, period, startDate);
             return _database.ExecuteDataTable(query, parameters);

@@ -35,7 +35,8 @@ namespace LMCIS.controller
                     return false;
                 }
 
-                var dt = ExecuteSqlQuery(GetAccountDataQuery(UID));
+                var (query, parameters) = GetAccountDataQuery(UID);
+                var dt = ExecuteSqlQuery(query, parameters);
 
                 // Account not found
                 if (dt.Rows.Count < 1)
@@ -60,12 +61,16 @@ namespace LMCIS.controller
             }
         }
 
-        private string GetAccountDataQuery(string UID)
+        private (string, System.Collections.Generic.Dictionary<string, object>) GetAccountDataQuery(string UID)
         {
-            return UID.StartsWith("LMC") || UID.StartsWith("LMS")
-                ? $"SELECT password, status FROM customer_account WHERE customerID = '{UID}' " +
-                  $"UNION ALL SELECT password, status FROM staff_account WHERE staffID = '{UID}'"
-                : throw new Exception("Not a LM account.");
+            if (!(UID.StartsWith("LMC") || UID.StartsWith("LMS")))
+            {
+                throw new Exception("Not a LM account.");
+            }
+
+            return ("SELECT password, status FROM customer_account WHERE customerID = @uid " +
+                    "UNION ALL SELECT password, status FROM staff_account WHERE staffID = @uid",
+                new System.Collections.Generic.Dictionary<string, object> { { "@uid", UID } });
         }
 
         // check if the password is valid
@@ -87,7 +92,8 @@ namespace LMCIS.controller
         {
             try
             {
-                var dt = ExecuteSqlQuery(GetIsLmDataQuery(UID));
+                var dt = ExecuteSqlQuery("SELECT isLM from customer_account WHERE customerID = @uid",
+                    new System.Collections.Generic.Dictionary<string, object> { { "@uid", UID } });
                 if (dt.Rows[0][0].ToString() == "Y")
                 {
                     isLM = true;
@@ -107,11 +113,10 @@ namespace LMCIS.controller
             UIController.SetPermission(UserID);
         }
 
-        private string GetIsLmDataQuery(string UID) => $"SELECT isLM from customer_account WHERE customerID = '{UID}'";
-
         private void UserInfo()
         {
-            var dt = ExecuteSqlQuery(GetUserInfoDataQuery(UserID));
+            var (query, parameters) = GetUserInfoDataQuery(UserID);
+            var dt = ExecuteSqlQuery(query, parameters);
 
             lastName = dt.Rows[0]["lastName"].ToString();
             firstName = dt.Rows[0]["firstName"].ToString();
@@ -119,26 +124,33 @@ namespace LMCIS.controller
             AccountType = GetAccountType(UserID);
         }
 
-        private string GetUserInfoDataQuery(string UID) => UID.StartsWith("LMC")
-            ? $"SELECT customerAccountID AS accountID, firstName, lastName FROM customer C, customer_account CA WHERE CA.customerID = '{UID}' AND C.customerID = '{UID}'"
-            : $"SELECT staffAccountID AS accountID, firstName, lastName FROM staff S, staff_account SA WHERE SA.staffID = '{UID}' AND S.staffID = '{UID}'";
+        private (string, System.Collections.Generic.Dictionary<string, object>) GetUserInfoDataQuery(string UID) => UID.StartsWith("LMC")
+            ? ("SELECT customerAccountID AS accountID, firstName, lastName FROM customer C, customer_account CA WHERE CA.customerID = @uid AND C.customerID = @uid",
+                new System.Collections.Generic.Dictionary<string, object> { { "@uid", UID } })
+            : ("SELECT staffAccountID AS accountID, firstName, lastName FROM staff S, staff_account SA WHERE SA.staffID = @uid AND S.staffID = @uid",
+                new System.Collections.Generic.Dictionary<string, object> { { "@uid", UID } });
 
         //update the login record into the database.
         public void SetLog(string Date)
         {
             var query = UserID.StartsWith("LMC")
-                ? $"INSERT INTO customer_login_history VALUES('{accountID}', '{Date}')"
-                : $"INSERT INTO staff_login_history VALUES('{accountID}', '{Date}')";
-            
-            db.ExecuteNonQueryCommand(query, null);
+                ? "INSERT INTO customer_login_history VALUES(@accountID, @loginDate)"
+                : "INSERT INTO staff_login_history VALUES(@accountID, @loginDate)";
+
+            db.ExecuteNonQueryCommand(query, new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "@accountID", accountID },
+                { "@loginDate", Date }
+            });
         }
 
         //Return the last login date time.
         public string GetLog()
         {
             var dt = ExecuteSqlQuery(
-                $"SELECT loginDate FROM customer_login_history WHERE customerAccountID = '{accountID}' " +
-                $"UNION ALL SELECT loginDate FROM staff_login_history WHERE staffAccountID = '{accountID}' ORDER BY loginDATE DESC");
+                "SELECT loginDate FROM customer_login_history WHERE customerAccountID = @accountID " +
+                "UNION ALL SELECT loginDate FROM staff_login_history WHERE staffAccountID = @accountID ORDER BY loginDATE DESC",
+                new System.Collections.Generic.Dictionary<string, object> { { "@accountID", accountID } });
             return dt.Rows[0]["loginDate"].ToString();
         }
 
@@ -146,16 +158,18 @@ namespace LMCIS.controller
         public DataTable GetFullLog()
         {
             return ExecuteSqlQuery(
-                $"SELECT loginDate FROM customer_login_history WHERE customerAccountID = '{accountID}' " +
-                $"UNION ALL SELECT loginDate FROM staff_login_history WHERE staffAccountID = '{accountID}' ORDER BY loginDate DESC");
+                "SELECT loginDate FROM customer_login_history WHERE customerAccountID = @accountID " +
+                "UNION ALL SELECT loginDate FROM staff_login_history WHERE staffAccountID = @accountID ORDER BY loginDate DESC",
+                new System.Collections.Generic.Dictionary<string, object> { { "@accountID", accountID } });
         }
 
         //Return the last password change date.
         public DateTime GetPwdChange()
         {
             var dt = ExecuteSqlQuery(
-                $"SELECT pwdChangeDate FROM customer_account WHERE customerAccountID = '{accountID}' " +
-                $"UNION ALL SELECT pwdChangeDate FROM staff_account WHERE staffAccountID = '{accountID}'");
+                "SELECT pwdChangeDate FROM customer_account WHERE customerAccountID = @accountID " +
+                "UNION ALL SELECT pwdChangeDate FROM staff_account WHERE staffAccountID = @accountID",
+                new System.Collections.Generic.Dictionary<string, object> { { "@accountID", accountID } });
             
             return (DateTime)dt.Rows[0]["pwdChangeDate"];
         }
@@ -164,7 +178,8 @@ namespace LMCIS.controller
         //For the password change function in the profile.
         public bool MatchPwd(string gettedPwd)
         {
-            var dt = ExecuteSqlQuery(GetAccountDataQuery(UserID));
+            var (query, parameters) = GetAccountDataQuery(UserID);
+            var dt = ExecuteSqlQuery(query, parameters);
             return IsPasswordValid(gettedPwd, dt.Rows[0]["password"].ToString());
         }
 
@@ -174,7 +189,8 @@ namespace LMCIS.controller
             try
             {
                 db.ExecuteNonQueryCommand(
-                    $"UPDATE customer_account SET Status = 'disable' WHERE customerAccountID = '{accountID}'", null);
+                    "UPDATE customer_account SET Status = 'disable' WHERE customerAccountID = @accountID",
+                    new System.Collections.Generic.Dictionary<string, object> { { "@accountID", accountID } });
                 return true;
             }
             catch (Exception)
@@ -185,14 +201,17 @@ namespace LMCIS.controller
 
         public DataTable GetStaffDetail(string id)
         {
-            var dt = ExecuteSqlQuery($"SELECT staffID FROM staff_account WHERE staffAccountID = '{id}'");
+            var dt = ExecuteSqlQuery("SELECT staffID FROM staff_account WHERE staffAccountID = @staffAccountID",
+                new System.Collections.Generic.Dictionary<string, object> { { "@staffAccountID", id } });
             var staffID = dt.Rows[0][0].ToString();
-            return ExecuteSqlQuery($"SELECT * FROM staff WHERE staffID = '{staffID}'");
+            return ExecuteSqlQuery("SELECT * FROM staff WHERE staffID = @staffID",
+                new System.Collections.Generic.Dictionary<string, object> { { "@staffID", staffID } });
         }
 
         //use in viewOrderController   //id = customerID
         public DataTable GetCustomerDetail(string id) =>
-            ExecuteSqlQuery($"SELECT * FROM customer WHERE customerID = '{id}'");
+            ExecuteSqlQuery("SELECT * FROM customer WHERE customerID = @customerID",
+                new System.Collections.Generic.Dictionary<string, object> { { "@customerID", id } });
 
         //User's information for UI
         public string GetName() => lastName + " " + firstName;
@@ -205,22 +224,27 @@ namespace LMCIS.controller
 
         public bool GetIsLm() => isLM;
         private DataTable ExecuteSqlQuery(string sqlQuery) => db.ExecuteDataTable(sqlQuery);
+        private DataTable ExecuteSqlQuery(string sqlQuery, System.Collections.Generic.Dictionary<string, object> parameters) => db.ExecuteDataTable(sqlQuery, parameters);
 
         public bool CheckIsManager() =>
-            ExecuteSqlQuery($"SELECT jobTitle FROM staff WHERE staffID = '{UserID}'").Rows[0][0].ToString() ==
+            ExecuteSqlQuery("SELECT jobTitle FROM staff WHERE staffID = @staffID",
+                new System.Collections.Generic.Dictionary<string, object> { { "@staffID", UserID } }).Rows[0][0].ToString() ==
             "Sales Manager";
 
         public bool CheckIsDeliverman() =>
-            ExecuteSqlQuery($"SELECT jobTitle FROM staff WHERE staffID = '{UserID}'").Rows[0][0].ToString() ==
+            ExecuteSqlQuery("SELECT jobTitle FROM staff WHERE staffID = @staffID",
+                new System.Collections.Generic.Dictionary<string, object> { { "@staffID", UserID } }).Rows[0][0].ToString() ==
             "Deliverman";
 
         public bool CheckIsStoreman() =>
-            ExecuteSqlQuery($"SELECT jobTitle FROM staff WHERE staffID = '{UserID}'").Rows[0][0].ToString() ==
+            ExecuteSqlQuery("SELECT jobTitle FROM staff WHERE staffID = @staffID",
+                new System.Collections.Generic.Dictionary<string, object> { { "@staffID", UserID } }).Rows[0][0].ToString() ==
             "Storeman";
 
         private string GetJobTit(string UID)
         {
-            var dt = ExecuteSqlQuery($"SELECT jobTitle FROM staff WHERE staffID = \'{UID}\'");
+            var dt = ExecuteSqlQuery("SELECT jobTitle FROM staff WHERE staffID = @staffID",
+                new System.Collections.Generic.Dictionary<string, object> { { "@staffID", UID } });
 
             return dt.Rows[0]["jobTitle"].ToString();
         }
@@ -260,9 +284,8 @@ namespace LMCIS.controller
 
             DataTable dt = new DataTable();
 
-            sqlStr = $"SELECT content FROM message WHERE msgID = \'{MSGID}\'";
-
-            dt = db.ExecuteDataTable(sqlStr);
+            sqlStr = "SELECT content FROM message WHERE msgID = @msgID";
+            dt = db.ExecuteDataTable(sqlStr, new System.Collections.Generic.Dictionary<string, object> { { "@msgID", MSGID } });
 
             return dt.Rows[0]["content"].ToString();
         }
@@ -302,10 +325,15 @@ namespace LMCIS.controller
 
                 }
             }
+            if (UserID.StartsWith("LMS"))
+            {
+                dt = db.ExecuteDataTable(sqlStr);
+            }
             else
-                sqlStr = $"SELECT O.orderID, O.status FROM order_ O, customer_account CA WHERE O.customerAccountID = CA.customerAccountID AND CA.customerID = \'{UserID}\'";
-
-            dt = db.ExecuteDataTable(sqlStr);
+            {
+                sqlStr = "SELECT O.orderID, O.status FROM order_ O, customer_account CA WHERE O.customerAccountID = CA.customerAccountID AND CA.customerID = @customerID";
+                dt = db.ExecuteDataTable(sqlStr, new System.Collections.Generic.Dictionary<string, object> { { "@customerID", UserID } });
+            }
 
             if (dt.Rows.Count > 0)
             {

@@ -16,7 +16,8 @@ namespace LMCIS.controller
         public DataTable getProductList(string kwType, string kw, string category, string status, string sortBy)
         {
             string sqlCmd =
-                $"SELECT x.*,y.quantity,y.name FROM product x, spare_part y WHERE x.partNumber = y.partNumber";
+                "SELECT x.*,y.quantity,y.name FROM product x, spare_part y WHERE x.partNumber = y.partNumber";
+            var parameters = new Dictionary<string, object>();
             var sortByOptions = new Dictionary<string, string>
             {
                 { "ItemNo", "x.itemID" },
@@ -35,13 +36,15 @@ namespace LMCIS.controller
 
             if (category != "All")
             {
-                sqlCmd += $" AND x.category = \'{category}\'";
+                sqlCmd += " AND x.category = @category";
+                parameters.Add("@category", category);
             }
 
 
             if (status != "All")
             {
-                sqlCmd += $" AND x.status = \'{status}\'";
+                sqlCmd += " AND x.status = @status";
+                parameters.Add("@status", status);
             }
 
             if (kw != "")
@@ -49,20 +52,23 @@ namespace LMCIS.controller
                 switch (kwType)
                 {
                     case "Item No.":
-                        sqlCmd += $" AND x.itemID LIKE \'%{kw}%\'";
+                        sqlCmd += " AND x.itemID LIKE @kwLike";
+                        parameters.Add("@kwLike", "%" + kw + "%");
                         break;
                     case "Part No.":
-                        sqlCmd += $" AND x.partNumber LIKE \'%{kw}%\'";
+                        sqlCmd += " AND x.partNumber LIKE @kwLike";
+                        parameters.Add("@kwLike", "%" + kw + "%");
                         break;
                     case "Name":
-                        sqlCmd += $" AND y.name LIKE \'%{kw}%\'";
+                        sqlCmd += " AND y.name LIKE @kwLike";
+                        parameters.Add("@kwLike", "%" + kw + "%");
                         break;
                 }
             }
 
-            if (!sortByOptions.ContainsKey(sortBy)) return _db.ExecuteDataTable(sqlCmd, null);
+            if (!sortByOptions.ContainsKey(sortBy)) return new DataTable();
             sqlCmd += $" ORDER BY {sortByOptions[sortBy]}";
-            return _db.ExecuteDataTable(sqlCmd, null);
+            return _db.ExecuteDataTable(sqlCmd, parameters.Count == 0 ? null : parameters);
         }
     }
 }

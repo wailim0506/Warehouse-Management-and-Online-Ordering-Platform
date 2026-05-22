@@ -30,7 +30,8 @@ namespace LMCIS.controller
         {
             try
             {
-                db.ExecuteNonQueryCommand(GetAccTypeQuery(type, Uid, status), null);
+                var (query, parameters) = GetAccTypeQuery(type, Uid, status);
+                db.ExecuteNonQueryCommand(query, parameters);
                 MessageBox.Show("Operation successful!", "System message", MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
@@ -41,29 +42,36 @@ namespace LMCIS.controller
             }
         }
 
-        private string GetAccTypeQuery(string type, string Uid, int status)
+        private (string, Dictionary<string, object>) GetAccTypeQuery(string type, string Uid, int status)
         {
             string operation = status == 0
                 ? operation = "active"
                 : operation = "disable";
 
-            return type.Equals("Staff")
-                ? $"UPDATE staff_account SET status = \'{operation}\' WHERE staffID = \'{Uid}\'"
-                : $"UPDATE customer_account SET status = \'{operation}\' WHERE customerID = \'{Uid}\'";
+            string query = type.Equals("Staff")
+                ? "UPDATE staff_account SET status = @status WHERE staffID = @id"
+                : "UPDATE customer_account SET status = @status WHERE customerID = @id";
+            return (query, new Dictionary<string, object>
+            {
+                { "@status", operation },
+                { "@id", Uid }
+            });
         }
 
         public DataTable GetUser(String UID)
         {
-            return ExecuteSqlQuery(GetUserQuery(UID));
+            var (query, parameters) = GetUserQuery(UID);
+            return ExecuteSqlQuery(query, parameters);
         }
 
-        private string GetUserQuery(string UID)
+        private (string, Dictionary<string, object>) GetUserQuery(string UID)
         {
-            return UID.StartsWith("LMS")
-                ? $"SELECT S.staffID, firstName, lastName, createDate, status, jobTitle, name " +
-                  $"FROM staff S, staff_account SA, department D WHERE S.staffID = \'{UID}\' AND SA.staffID = \'{UID}\' AND S.deptID = D.deptID ORDER BY staffID"
-                : $"SELECT C.customerID, firstName, lastName, createDate, status, isLM " +
-                  $"FROM customer C, customer_account CA WHERE C.customerID = \'{UID}\' AND CA.customerID = \'{UID}\' ORDER BY customerID";
+            string query = UID.StartsWith("LMS")
+                ? "SELECT S.staffID, firstName, lastName, createDate, status, jobTitle, name " +
+                  "FROM staff S, staff_account SA, department D WHERE S.staffID = @id AND SA.staffID = @id AND S.deptID = D.deptID ORDER BY staffID"
+                : "SELECT C.customerID, firstName, lastName, createDate, status, isLM " +
+                  "FROM customer C, customer_account CA WHERE C.customerID = @id AND CA.customerID = @id ORDER BY customerID";
+            return (query, new Dictionary<string, object> { { "@id", UID } });
         }
 
         public DataTable GetUserList(String type)
@@ -73,7 +81,8 @@ namespace LMCIS.controller
 
         public DataTable GetUserList(String type, string dept)
         {
-            return ExecuteSqlQuery(GetUserListQuery(type, dept));
+            var (query, parameters) = GetUserListQuery(type, dept);
+            return ExecuteSqlQuery(query, parameters);
         }
 
 
@@ -91,10 +100,11 @@ namespace LMCIS.controller
                 : "SELECT C.customerID, firstName, lastName, createDate, status, isLM as LM_Account FROM customer C, customer_account CA WHERE C.customerID = CA.customerID ORDER BY customerID";
         }
 
-        private string GetUserListQuery(string type, string dept)
+        private (string, Dictionary<string, object>) GetUserListQuery(string type, string dept)
         {
-            return $"SELECT S.staffID, firstName, lastName, createDate, status, jobTitle, name " +
-                   $"FROM staff S, staff_account SA, department D WHERE S.staffID = SA.staffID AND S.deptID = D.deptID AND name = \'{dept}\'ORDER BY staffID";
+            return ("SELECT S.staffID, firstName, lastName, createDate, status, jobTitle, name " +
+                    "FROM staff S, staff_account SA, department D WHERE S.staffID = SA.staffID AND S.deptID = D.deptID AND name = @dept ORDER BY staffID",
+                new Dictionary<string, object> { { "@dept", dept } });
         }
 
         public int getLMSID()
@@ -109,22 +119,27 @@ namespace LMCIS.controller
         public bool CheckEmailPhone(string data)
         {
             sqlstr =
-                $"SELECT emailAddress, phoneNumber FROM customer C, customer_account CA WHERE Status = 'active' AND c.customerID = CA.customerID AND (phoneNumber = \'{data}\' OR emailAddress = \'{data}\') " +
-                $"UNION ALL SELECT emailAddress, phoneNumber FROM staff S, staff_account SA WHERE status = 'active' AND s.staffID = sa.staffID AND(phoneNumber = \'{data}\' OR emailAddress = \'{data}\');";
-            dt = ExecuteSqlQuery(sqlstr);
+                "SELECT emailAddress, phoneNumber FROM customer C, customer_account CA WHERE Status = 'active' AND c.customerID = CA.customerID AND (phoneNumber = @data OR emailAddress = @data) " +
+                "UNION ALL SELECT emailAddress, phoneNumber FROM staff S, staff_account SA WHERE status = 'active' AND s.staffID = sa.staffID AND (phoneNumber = @data OR emailAddress = @data);";
+            dt = ExecuteSqlQuery(sqlstr, new Dictionary<string, object> { { "@data", data } });
             return dt.Rows.Count < 1;
         }
 
         public List<string> GetJob(string dept)
         {
-            sqlstr = $"SELECT jobtitle FROM jobTitle WHERE department = \'{dept}\'";
-            DataTable dataTable = db.ExecuteDataTable(sqlstr);
+            sqlstr = "SELECT jobtitle FROM jobTitle WHERE department = @dept";
+            DataTable dataTable = db.ExecuteDataTable(sqlstr, new Dictionary<string, object> { { "@dept", dept } });
             return dataTable.AsEnumerable().Select(row => row["jobTitle"].ToString()).ToList();
         }
 
         private DataTable ExecuteSqlQuery(string sqlQuery)
         {
             return db.ExecuteDataTable(sqlQuery);
+        }
+
+        private DataTable ExecuteSqlQuery(string sqlQuery, Dictionary<string, object> parameters)
+        {
+            return db.ExecuteDataTable(sqlQuery, parameters);
         }
 
         private int GetDeliveryManID()
@@ -136,8 +151,8 @@ namespace LMCIS.controller
 
         private string GetPermission(string job)
         {
-            sqlstr = $"SELECT permissionID FROM jobtitle WHERE jobTitle = \'{job}\'";
-            dt = db.ExecuteDataTable(sqlstr);
+            sqlstr = "SELECT permissionID FROM jobtitle WHERE jobTitle = @jobTitle";
+            dt = db.ExecuteDataTable(sqlstr, new Dictionary<string, object> { { "@jobTitle", job } });
             return dt.Rows[0]["permissionID"].ToString();
         }
 

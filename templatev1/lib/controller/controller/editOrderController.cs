@@ -44,7 +44,8 @@ namespace LMCIS.controller
         //part num //order id
         public int GetPartQtyInOrder(string num, string id) => int.Parse(
             _db.ExecuteDataTable(
-                    $"SELECT quantity FROM order_line WHERE partNumber = '{num}' and orderID = '{id}'")
+                    "SELECT quantity FROM order_line WHERE partNumber = @partNumber AND orderID = @orderID",
+                    new Dictionary<string, object> { { "@partNumber", num }, { "@orderID", id } })
                 .Rows[0][0].ToString());
         
         public Boolean AddQtyBack(string num, int currentOrderQty, int desiredQty,
@@ -86,15 +87,19 @@ namespace LMCIS.controller
         public int GetSpareQtyInDb(string num)
         {
             int qtyInSpare_Part = int.Parse(_db.ExecuteDataTable(
-                $"SELECT quantity FROM spare_part " +
-                $"WHERE partNumber = '{num}'").Rows[0][0].ToString());
+                "SELECT quantity FROM spare_part WHERE partNumber = @partNumber",
+                new Dictionary<string, object> { { "@partNumber", num } }).Rows[0][0].ToString());
             return qtyInSpare_Part;
         }
 
         public int getPartQtyInOrder(string id, string num) //order id, part num
         {
-            sqlCmd = $"SELECT quantity from order_line WHERE partNumber = \'{num}\' AND orderID = \'{id}\'";
-            return int.Parse(_db.ExecuteDataTable(sqlCmd).Rows[0][0].ToString());
+            sqlCmd = "SELECT quantity from order_line WHERE partNumber = @partNumber AND orderID = @orderID";
+            return int.Parse(_db.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@partNumber", num },
+                { "@orderID", id }
+            }).Rows[0][0].ToString());
         }
 
         public Boolean EditDbQty(string num, int desiredQty, Boolean isLM, string id) //order id

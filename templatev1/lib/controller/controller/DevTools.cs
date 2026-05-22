@@ -13,6 +13,10 @@ namespace LMCIS.controller
     public class DevTools : abstractController
     {
         private Database _db = new Database();
+        private const string StaffAccountTable = "staff_account";
+        private const string CustomerAccountTable = "customer_account";
+        private const string StaffIdField = "staffID";
+        private const string CustomerIdField = "customerID";
 
         public bool UpdatePassword(Dictionary<string, string> usersToUpdate)
         {
@@ -22,9 +26,12 @@ namespace LMCIS.controller
                 {
                     var oldPassword = GetOldPassword(user.Key);
                     var hashedPassword = HashPassword(oldPassword);
-                    var sqlQuery =
-                        $"UPDATE {(user.Key.StartsWith("LMS") ? "staff_account" : "customer_account")} SET password = '{hashedPassword}' WHERE {(user.Key.StartsWith("LMS") ? "staffID" : "customerID")} = '{user.Key}'";
-                    ExecuteSqlQuery(sqlQuery);
+                    var sqlQuery = ResolveUpdatePasswordQuery(user.Key);
+                    ExecuteNonQuery(sqlQuery, new Dictionary<string, object>
+                    {
+                        { "@password", hashedPassword },
+                        { "@userID", user.Key }
+                    });
                 }
 
                 return true;
@@ -38,8 +45,10 @@ namespace LMCIS.controller
 
         private string GetOldPassword(string userId)
         {
+            var selectQuery = ResolveSelectPasswordQuery(userId);
             var dt = ExecuteSqlQuery(
-                $"SELECT * FROM {(userId.StartsWith("LMS") ? "staff_account" : "customer_account")} WHERE {(userId.StartsWith("LMS") ? "staffID" : "customerID")} = '{userId}'");
+                selectQuery,
+                new Dictionary<string, object> { { "@userID", userId } });
             var key = Convert.FromBase64String(dt.Rows[0]["pwdKEY"].ToString());
             var iv = Convert.FromBase64String(dt.Rows[0]["pwdIV"].ToString());
             var pwdbyte = Convert.FromBase64String(dt.Rows[0]["password"].ToString());
@@ -67,21 +76,47 @@ namespace LMCIS.controller
         public bool DeveloperToolForgetPassword(string userid, string newPassword)
         {
             string password = HashPassword(newPassword);
-            string sqlQuery =
-                $"UPDATE {(userid.StartsWith("LMS") ? "staff_account" : "customer_account")} SET password = '{password}' WHERE {(userid.StartsWith("LMS") ? "staffID" : "customerID")} = '{userid}'";
-            ExecuteSqlQuery(sqlQuery);
+            string sqlQuery = ResolveUpdatePasswordQuery(userid);
+            ExecuteNonQuery(sqlQuery, new Dictionary<string, object> { { "@password", password }, { "@userID", userid } });
             DataTable dt = ExecuteSqlQuery(
-                $"SELECT * FROM {(userid.StartsWith("LMS") ? "staff_account" : "customer_account")} " +
-                $"WHERE {(userid.StartsWith("LMS") ? "staffID" : "customerID")} = '{userid}'");
+                ResolveSelectPasswordQuery(userid),
+                new Dictionary<string, object> { { "@userID", userid } });
             return dt.Rows.Count == 1;
+        }
+
+        private static string ResolveUpdatePasswordQuery(string userId)
+        {
+            return IsStaffUser(userId)
+                ? $"UPDATE {StaffAccountTable} SET password = @password WHERE {StaffIdField} = @userID"
+                : $"UPDATE {CustomerAccountTable} SET password = @password WHERE {CustomerIdField} = @userID";
+        }
+
+        private static string ResolveSelectPasswordQuery(string userId)
+        {
+            return IsStaffUser(userId)
+                ? $"SELECT * FROM {StaffAccountTable} WHERE {StaffIdField} = @userID"
+                : $"SELECT * FROM {CustomerAccountTable} WHERE {CustomerIdField} = @userID";
+        }
+
+        private static bool IsStaffUser(string userId)
+        {
+            return !string.IsNullOrWhiteSpace(userId) && userId.StartsWith("LMS");
         }
 
 
         private DataTable ExecuteSqlQuery(string sqlQuery)
         {
-            DataTable dt = new DataTable();
-            _db.ExecuteDataTable(sqlQuery, null);
-            return dt;
+            return _db.ExecuteDataTable(sqlQuery, null);
+        }
+
+        private DataTable ExecuteSqlQuery(string sqlQuery, Dictionary<string, object> parameters)
+        {
+            return _db.ExecuteDataTable(sqlQuery, parameters);
+        }
+
+        private void ExecuteNonQuery(string sqlQuery, Dictionary<string, object> parameters)
+        {
+            _db.ExecuteNonQueryCommand(sqlQuery, parameters);
         }
 
         public static string HashPassword(string password)

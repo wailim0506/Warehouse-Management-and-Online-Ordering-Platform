@@ -21,15 +21,15 @@ namespace LMCIS.controller
         {
             string cartID = getCartID(id);
             string sqlCmd =
-                $"SELECT * from product_in_cart x, product y, spare_part z where x.cartID = \'{cartID}\' AND x.itemID = y.itemID AND y.partNumber = z.partNumber";
-            return _db.ExecuteDataTable(sqlCmd);
+                "SELECT * from product_in_cart x, product y, spare_part z where x.cartID = @cartID AND x.itemID = y.itemID AND y.partNumber = z.partNumber";
+            return _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object> { { "@cartID", cartID } });
         }
 
         public List<string> getAllPartNumInCart(string id) //customer id  //for remove all item
         {
             string cartID = getCartID(id);
-            string sqlCmd = $"SELECT itemID FROM product_in_cart WHERE cartID = \'{cartID}\'";
-            DataTable dt = _db.ExecuteDataTable(sqlCmd);
+            string sqlCmd = "SELECT itemID FROM product_in_cart WHERE cartID = @cartID";
+            DataTable dt = _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object> { { "@cartID", cartID } });
 
             List<string> itemId = new List<string>();
             for (int i = 0; i < dt.Rows.Count; i++)
@@ -41,8 +41,8 @@ namespace LMCIS.controller
             foreach (var t in itemId)
             {
                 dt = new DataTable();
-                sqlCmd = $"SELECT partNumber FROM product WHERE itemID = \'{t}\'";
-                dt = _db.ExecuteDataTable(sqlCmd);
+                sqlCmd = "SELECT partNumber FROM product WHERE itemID = @itemID";
+                dt = _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object> { { "@itemID", t } });
                 partNum.Add(dt.Rows[0][0].ToString());
             }
 
@@ -52,8 +52,8 @@ namespace LMCIS.controller
         public List<int> getAllItemQtyInCart(string id) //for remove all item
         {
             string cartID = getCartID(id);
-            string sqlCmd = $"SELECT quantity FROM product_in_cart WHERE cartID = \'{cartID}\'";
-            DataTable dt = _db.ExecuteDataTable(sqlCmd);
+            string sqlCmd = "SELECT quantity FROM product_in_cart WHERE cartID = @cartID";
+            DataTable dt = _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object> { { "@cartID", cartID } });
 
             List<int> itemQty = new List<int>();
             for (int i = 0; i < dt.Rows.Count; i++)
@@ -68,8 +68,8 @@ namespace LMCIS.controller
         public Boolean RemovePart(string num, string id) //partNum, customer id
         {
             string cartID = getCartID(id);
-            string sqlCmd = $"SELECT itemID FROM product WHERE partNumber = \'{num}\'";
-            DataTable dt = _db.ExecuteDataTable(sqlCmd);
+            string sqlCmd = "SELECT itemID FROM product WHERE partNumber = @partNumber";
+            DataTable dt = _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object> { { "@partNumber", num } });
             string itemID = dt.Rows[0][0].ToString();
 
             sqlCmd = "DELETE FROM product_in_cart WHERE itemID = @id AND cartID = @cartID";
@@ -118,21 +118,20 @@ namespace LMCIS.controller
 
         public string getCartID(string id) //customer id
         {
-            string sqlCmd = $"SELECT customerAccountID FROM customer_account WHERE customerID = '{id}'";
-            string customerAccointID = _db.ExecuteDataTable(sqlCmd).Rows[0][0].ToString();
+            string sqlCmd = "SELECT customerAccountID FROM customer_account WHERE customerID = @customerID";
+            string customerAccointID = _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object> { { "@customerID", id } }).Rows[0][0].ToString();
 
-            sqlCmd = $"SELECT cartID FROM cart WHERE customerAccountID = '{customerAccointID}'";
-            return _db.ExecuteDataTable(sqlCmd).Rows[0][0].ToString();
+            sqlCmd = "SELECT cartID FROM cart WHERE customerAccountID = @customerAccountID";
+            return _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object> { { "@customerAccountID", customerAccointID } }).Rows[0][0].ToString();
         }
 
         public int GetCurrentQtyInCart(string num, string id) //part num, customer id
         {
             string cartID = getCartID(id);
-            string itemID = _db.ExecuteDataTable($"SELECT itemID FROM product " +
-                                                 $"WHERE partNumber = '{num}'").Rows[0][0].ToString();
-            return int.Parse(_db.ExecuteDataTable($"SELECT quantity FROM product_in_cart " +
-                                                  $"WHERE itemID = '{itemID}' " +
-                                                  $"AND cartID = '{cartID}'").Rows[0][0].ToString());
+            string itemID = _db.ExecuteDataTable("SELECT itemID FROM product WHERE partNumber = @partNumber",
+                new Dictionary<string, object> { { "@partNumber", num } }).Rows[0][0].ToString();
+            return int.Parse(_db.ExecuteDataTable("SELECT quantity FROM product_in_cart WHERE itemID = @itemID AND cartID = @cartID",
+                new Dictionary<string, object> { { "@itemID", itemID }, { "@cartID", cartID } }).Rows[0][0].ToString());
         }
 
         //add qty back to db for product table and spare_part table
@@ -224,7 +223,9 @@ namespace LMCIS.controller
 
             //edit to db
             string column = isLM ? "LM_onSaleQty" : "onSaleQty";
-            sqlCmd = $"UPDATE product SET {column} = @qty WHERE partNumber = @num";
+            sqlCmd = isLM
+                ? "UPDATE product SET LM_onSaleQty = @qty WHERE partNumber = @num"
+                : "UPDATE product SET onSaleQty = @qty WHERE partNumber = @num";
 
             try
             {
@@ -271,7 +272,8 @@ namespace LMCIS.controller
         public Boolean editCartQty(string num, string id, int newQty) //part num, customer id, new qty
         {
             string cartID = getCartID(id);
-            string itemID = _db.ExecuteDataTable($"SELECT itemID FROM product WHERE partNumber = '{num}'")
+            string itemID = _db.ExecuteDataTable("SELECT itemID FROM product WHERE partNumber = @partNumber",
+                    new Dictionary<string, object> { { "@partNumber", num } })
                 .Rows[0][0].ToString();
 
             var parameters = new Dictionary<string, object>
@@ -298,16 +300,18 @@ namespace LMCIS.controller
         public int getOnSaleQtyInDb(string num, Boolean isLM) //part num
         {
             string column = isLM ? "LM_onSaleQty" : "onSaleQty";
-            string sqlCmd = $"SELECT {column} FROM product WHERE partNumber = '{num}'";
-            int qtyInProduct = int.Parse(_db.ExecuteDataTable(sqlCmd).Rows[0][0].ToString());
+            string sqlCmd = isLM
+                ? "SELECT LM_onSaleQty FROM product WHERE partNumber = @partNumber"
+                : "SELECT onSaleQty FROM product WHERE partNumber = @partNumber";
+            int qtyInProduct = int.Parse(_db.ExecuteDataTable(sqlCmd, new Dictionary<string, object> { { "@partNumber", num } }).Rows[0][0].ToString());
             return qtyInProduct;
         }
 
         public int GetSpareQtyInDb(string num)
         {
             int qtyInSpare_Part = int.Parse(_db.ExecuteDataTable(
-                $"SELECT quantity FROM spare_part " +
-                $"WHERE partNumber = '{num}'").Rows[0][0].ToString());
+                "SELECT quantity FROM spare_part WHERE partNumber = @partNumber",
+                new Dictionary<string, object> { { "@partNumber", num } }).Rows[0][0].ToString());
             return qtyInSpare_Part;
         }
 
@@ -345,9 +349,8 @@ namespace LMCIS.controller
             //get the customer account id first
             string customerAccountID =
                 _db.ExecuteDataTable(
-                    $"SELECT customerAccountID " +
-                    $"FROM customer_account " +
-                    $"WHERE customerID = '{id}'").Rows[0][0].ToString();
+                    "SELECT customerAccountID FROM customer_account WHERE customerID = @customerID",
+                    new Dictionary<string, object> { { "@customerID", id } }).Rows[0][0].ToString();
             //generate an order id
             string orderID = OrderIdGenerator();
             //generate order serial num
@@ -404,7 +407,7 @@ namespace LMCIS.controller
             //insert to db
             for (int i = 0; i < dt.Rows.Count; i++)
             {
-                string sqlCmd = $"INSERT INTO order_line VALUES(@partNum,@orderID,@qty,@price)";
+            string sqlCmd = $"INSERT INTO order_line VALUES(@partNum,@orderID,@qty,@price)";
                 var parameters = new Dictionary<string, object>
                 {
                     { "@partNum", dt.Rows[i][6].ToString() },
@@ -509,19 +512,18 @@ namespace LMCIS.controller
         public string OrderIdGenerator()
         {
             string yearMonth = DateTime.Now.ToString("yyMM");
-            string sqlCmd = $"SELECT COUNT(orderID) FROM order_ WHERE orderID LIKE 'OD{yearMonth}%'";
+            string sqlCmd = "SELECT COUNT(orderID) FROM order_ WHERE orderID LIKE @orderPrefix";
 
             //see how many orders in this year month
-            int orderInYearMonth = Int32.Parse(_db.ExecuteScalarCommand(sqlCmd)) + 1; //+1 for order id
+            int orderInYearMonth = Int32.Parse(_db.ExecuteScalarCommand(sqlCmd, new Dictionary<string, object> { { "@orderPrefix", "OD" + yearMonth + "%" } }).ToString()) + 1; //+1 for order id
             return $"OD{yearMonth}{orderInYearMonth:D4}";
         }
 
         public string OrderSerialNumGenerator()
         {
             string yearMonth = DateTime.Now.ToString("yyMM");
-            string sqlCmd =
-                $"SELECT COUNT(orderSerialNumber) FROM order_ WHERE orderSerialNumber LIKE 'SN{yearMonth}%'";
-            int orderInYearMonth = Convert.ToInt32(_db.ExecuteScalarCommand(sqlCmd)) + 1; //+1 for order id
+            string sqlCmd = "SELECT COUNT(orderSerialNumber) FROM order_ WHERE orderSerialNumber LIKE @serialPrefix";
+            int orderInYearMonth = Convert.ToInt32(_db.ExecuteScalarCommand(sqlCmd, new Dictionary<string, object> { { "@serialPrefix", "SN" + yearMonth + "%" } })) + 1; //+1 for order id
 
             //see how many order in this year month
             return $"SN{yearMonth}{orderInYearMonth:D4}";
@@ -542,8 +544,8 @@ namespace LMCIS.controller
             //string staffIDAssigned = "LMS00002";
 
             //get the staff account id
-            sqlCmd = $"SELECT staffAccountID FROM staff_account WHERE staffID = '{staffIDAssigned}'";
-            dt = _db.ExecuteDataTable(sqlCmd);
+            sqlCmd = "SELECT staffAccountID FROM staff_account WHERE staffID = @staffID";
+            dt = _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object> { { "@staffID", staffIDAssigned } });
             return dt.Rows[0][0].ToString();
         }
 
@@ -562,8 +564,8 @@ namespace LMCIS.controller
 
         public DataTable GetCustomerAddress(string id) //customer id
         {
-            string sqlCmd = $"SELECT warehouseAddress, province, city FROM customer WHERE customerID = '{id}'";
-            return _db.ExecuteDataTable(sqlCmd);
+            string sqlCmd = "SELECT warehouseAddress, province, city FROM customer WHERE customerID = @customerID";
+            return _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object> { { "@customerID", id } });
         }
     }
 

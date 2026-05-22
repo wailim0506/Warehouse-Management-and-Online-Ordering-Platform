@@ -38,29 +38,33 @@ namespace LMCIS.controller
         //Search function.
         public DataTable SearchPart(string PartID)
         {
-            sqlStr = $"SELECT * FROM spare_part WHERE partNumber = \'{PartID}\'";
-            return ExecuteSqlQuery(sqlStr);
+            sqlStr = "SELECT * FROM spare_part WHERE partNumber = @partNumber";
+            return _db.ExecuteDataTable(sqlStr, new Dictionary<string, object> { { "@partNumber", PartID } });
         }
 
         public DataTable AdvancedSearch(dynamic partValues)
         {
-            string condition;
-            condition = "";
+            string condition = "";
+            var parameters = new Dictionary<string, object>();
 
             //Set the condition of advenced search.
             condition += string.IsNullOrEmpty(partValues.partName)
                 ? ""
-                : $" AND SP.name LIKE '%{partValues.partName}%' ";
-            condition += string.IsNullOrEmpty(partValues.supplier) ? "" : $" AND S.name = \'{partValues.supplier}\' ";
-            condition += string.IsNullOrEmpty(partValues.category) ? "" : $" AND C.type = \'{partValues.category}\' ";
-            condition += string.IsNullOrEmpty(partValues.country) ? "" : $" AND S.country = \'{partValues.country}\' ";
+                : " AND SP.name LIKE @partName ";
+            if (!string.IsNullOrEmpty(partValues.partName)) parameters["@partName"] = "%" + partValues.partName + "%";
+            condition += string.IsNullOrEmpty(partValues.supplier) ? "" : " AND S.name = @supplierName ";
+            if (!string.IsNullOrEmpty(partValues.supplier)) parameters["@supplierName"] = partValues.supplier;
+            condition += string.IsNullOrEmpty(partValues.category) ? "" : " AND C.type = @categoryType ";
+            if (!string.IsNullOrEmpty(partValues.category)) parameters["@categoryType"] = partValues.category;
+            condition += string.IsNullOrEmpty(partValues.country) ? "" : " AND S.country = @country ";
+            if (!string.IsNullOrEmpty(partValues.country)) parameters["@country"] = partValues.country;
 
             sqlStr =
-                $"SELECT SP.partNumber, SP.supplierID, SP.categoryID, SP.name, SP.reorderLevel, SP.dangerLevel, SP.quantity, SP.status " +
-                $"FROM spare_part SP, supplier S, category C " +
-                $"WHERE SP.supplierID = S.supplierID AND SP.categoryID = C.categoryID " +
-                $"{condition}";
-            return ExecuteSqlQuery(sqlStr);
+                "SELECT SP.partNumber, SP.supplierID, SP.categoryID, SP.name, SP.reorderLevel, SP.dangerLevel, SP.quantity, SP.status " +
+                "FROM spare_part SP, supplier S, category C " +
+                "WHERE SP.supplierID = S.supplierID AND SP.categoryID = C.categoryID " +
+                condition;
+            return _db.ExecuteDataTable(sqlStr, parameters.Count == 0 ? null : parameters);
         }
 
 
@@ -68,8 +72,8 @@ namespace LMCIS.controller
         {
             dt = new DataTable();
 
-            sqlStr = $"SELECT * FROM spare_part WHERE quantity = 0 AND partNumber = \'{PartID}\'";
-            dt = _db.ExecuteDataTable(sqlStr);
+            dt = _db.ExecuteDataTable("SELECT * FROM spare_part WHERE quantity = 0 AND partNumber = @partNumber",
+                new Dictionary<string, object> { { "@partNumber", PartID } });
 
             return dt.Rows.Count == 1;
         }
@@ -78,8 +82,8 @@ namespace LMCIS.controller
         {
             dt = new DataTable();
 
-            sqlStr = $"SELECT * FROM spare_part WHERE quantity < reorderLevel AND partNumber = \'{PartID}\'";
-            dt = _db.ExecuteDataTable(sqlStr);
+            dt = _db.ExecuteDataTable("SELECT * FROM spare_part WHERE quantity < reorderLevel AND partNumber = @partNumber",
+                new Dictionary<string, object> { { "@partNumber", PartID } });
 
             return dt.Rows.Count == 1;
         }
@@ -90,11 +94,10 @@ namespace LMCIS.controller
             dt = new DataTable();
 
             sqlStr =
-                $"SELECT SP.status, SP.partNumber, SP.supplierID, SP.name AS SPname, SP.reorderLevel, SP.dangerLevel, SP.quantity, " +
-                $"SP.lastModified, S.name AS Sname, S.phone, S.address, S.country, C.type FROM spare_part SP, supplier S, category C " +
-                $"WHERE SP.partNumber = \'{PartID}\' AND SP.supplierID = S.supplierID AND SP.categoryID = C.categoryID";
-
-            dt = _db.ExecuteDataTable(sqlStr);
+                "SELECT SP.status, SP.partNumber, SP.supplierID, SP.name AS SPname, SP.reorderLevel, SP.dangerLevel, SP.quantity, " +
+                "SP.lastModified, S.name AS Sname, S.phone, S.address, S.country, C.type FROM spare_part SP, supplier S, category C " +
+                "WHERE SP.partNumber = @partNumber AND SP.supplierID = S.supplierID AND SP.categoryID = C.categoryID";
+            dt = _db.ExecuteDataTable(sqlStr, new Dictionary<string, object> { { "@partNumber", PartID } });
 
             dynamic StockInfo = new ExpandoObject();
             StockInfo.partNumber = dt.Rows[0]["partNumber"].ToString();
@@ -118,9 +121,8 @@ namespace LMCIS.controller
         {
             dt = new DataTable();
 
-            sqlStr = $"SELECT * FROM product WHERE partNumber = \'{PartID}\'";
-
-            dt = _db.ExecuteDataTable(sqlStr);
+            dt = _db.ExecuteDataTable("SELECT * FROM product WHERE partNumber = @partNumber",
+                new Dictionary<string, object> { { "@partNumber", PartID } });
 
             dynamic OnSaleInfo = new ExpandoObject();
             OnSaleInfo.itemID = dt.Rows[0]["itemID"].ToString();
@@ -202,16 +204,16 @@ namespace LMCIS.controller
 
         public void CancelReorder(string reorderID)
         {
-            sqlStr = $"UPDATE reorder_request SET status = 'cancelled' WHERE reorderID = \'{reorderID}\'";
-            _db.ExecuteNonQueryCommand(sqlStr, null);
+            _db.ExecuteNonQueryCommand("UPDATE reorder_request SET status = 'cancelled' WHERE reorderID = @reorderID",
+                new Dictionary<string, object> { { "@reorderID", reorderID } });
         }
 
         public void AcceptReorderANDRestock(string PartID, string reorderQty, string reorderID)
         {
-            sqlStr = $"UPDATE spare_part SET quantity = quantity + \'{reorderQty}\' WHERE partNumber = \'{PartID}\'";
-            _db.ExecuteNonQueryCommand(sqlStr, null);
-            sqlStr = $"UPDATE reorder_request SET status = 'finished' WHERE reorderID = \'{reorderID}\'";
-            _db.ExecuteNonQueryCommand(sqlStr, null);
+            _db.ExecuteNonQueryCommand("UPDATE spare_part SET quantity = quantity + @reorderQty WHERE partNumber = @partNumber",
+                new Dictionary<string, object> { { "@reorderQty", reorderQty }, { "@partNumber", PartID } });
+            _db.ExecuteNonQueryCommand("UPDATE reorder_request SET status = 'finished' WHERE reorderID = @reorderID",
+                new Dictionary<string, object> { { "@reorderID", reorderID } });
         }
 
         public void SetModifyPartID(string PartID)
@@ -269,9 +271,8 @@ namespace LMCIS.controller
         {
             dt = new DataTable();
 
-            sqlStr = $"SELECT supplierID FROM supplier WHERE name = \'{suppilerName}\'";
-
-            dt = _db.ExecuteDataTable(sqlStr);
+            dt = _db.ExecuteDataTable("SELECT supplierID FROM supplier WHERE name = @supplierName",
+                new Dictionary<string, object> { { "@supplierName", suppilerName } });
 
             return dt.Rows[0]["supplierID"].ToString();
         }
@@ -280,9 +281,8 @@ namespace LMCIS.controller
         {
             dt = new DataTable();
 
-            sqlStr = $"SELECT categoryID FROM category WHERE type = \'{Category}\'";
-
-            dt = _db.ExecuteDataTable(sqlStr);
+            dt = _db.ExecuteDataTable("SELECT categoryID FROM category WHERE type = @categoryType",
+                new Dictionary<string, object> { { "@categoryType", Category } });
 
             return dt.Rows[0]["categoryID"].ToString();
         }
@@ -296,9 +296,7 @@ namespace LMCIS.controller
         {
             dt = new DataTable();
 
-            sqlStr = $"SELECT * FROM spare_part";
-
-            dt = _db.ExecuteDataTable(sqlStr);
+            dt = _db.ExecuteDataTable("SELECT * FROM spare_part");
 
             return dt.Rows.Count;
         }
@@ -307,9 +305,7 @@ namespace LMCIS.controller
         {
             dt = new DataTable();
 
-            sqlStr = $"SELECT * FROM supplier";
-
-            dt = _db.ExecuteDataTable(sqlStr);
+            dt = _db.ExecuteDataTable("SELECT * FROM supplier");
 
             return dt.Rows.Count;
         }
@@ -320,9 +316,8 @@ namespace LMCIS.controller
 
             dt = new DataTable();
 
-            sqlStr = $"SELECT * FROM spare_part WHERE categoryID = \'{CategoryID}\'";
-
-            dt = _db.ExecuteDataTable(sqlStr);
+            dt = _db.ExecuteDataTable("SELECT * FROM spare_part WHERE categoryID = @categoryID",
+                new Dictionary<string, object> { { "@categoryID", CategoryID } });
 
             int No = dt.Rows.Count + 1; //Get the no. of part.
 
@@ -377,9 +372,8 @@ namespace LMCIS.controller
         {
             dt = new DataTable();
 
-            sqlStr = $"SELECT * FROM supplier WHERE supplierID = \'{SupplierID}\'";
-
-            dt = _db.ExecuteDataTable(sqlStr);
+            dt = _db.ExecuteDataTable("SELECT * FROM supplier WHERE supplierID = @supplierID",
+                new Dictionary<string, object> { { "@supplierID", SupplierID } });
 
             dynamic SupplierInfo = new ExpandoObject();
             SupplierInfo.supplierID = dt.Rows[0]["supplierID"].ToString();
@@ -404,8 +398,8 @@ namespace LMCIS.controller
 
         public DataTable SearchSupplier(string SupplierID)
         {
-            sqlStr = $"SELECT * FROM supplier WHERE supplierID = \'{SupplierID}\'";
-            return ExecuteSqlQuery(sqlStr);
+            return _db.ExecuteDataTable("SELECT * FROM supplier WHERE supplierID = @supplierID",
+                new Dictionary<string, object> { { "@supplierID", SupplierID } });
         }
 
         public bool ModifySupplierInfo(dynamic SupplierInfo)
@@ -449,9 +443,8 @@ namespace LMCIS.controller
         {
             dt = new DataTable();
 
-            sqlStr = $"SELECT abbreviation FROM countries WHERE country = \'{country}\'";
-
-            dt = _db.ExecuteDataTable(sqlStr);
+            dt = _db.ExecuteDataTable("SELECT abbreviation FROM countries WHERE country = @country",
+                new Dictionary<string, object> { { "@country", country } });
 
             return dt.Rows[0]["abbreviation"].ToString();
         }
@@ -463,9 +456,8 @@ namespace LMCIS.controller
 
             dt = new DataTable();
 
-            sqlStr = $"SELECT * FROM supplier WHERE supplierID LIKE '%{CountryAbbreviation}%'";
-
-            dt = _db.ExecuteDataTable(sqlStr);
+            dt = _db.ExecuteDataTable("SELECT * FROM supplier WHERE supplierID LIKE @supplierIdLike",
+                new Dictionary<string, object> { { "@supplierIdLike", "%" + CountryAbbreviation + "%" } });
 
             int No = dt.Rows.Count + 1; //Get the no. of part.
 

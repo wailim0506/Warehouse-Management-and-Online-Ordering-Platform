@@ -86,8 +86,11 @@ namespace LMCIS.controller
         public List<string> getOrderID(string id) //customer id
         {
             string sqlCmd =
-                $"SELECT orderID FROM order_ x, customer_account y WHERE x.customerAccountID = y.customerAccountID AND y.customerID = '{id}' ";
-            var dt = _db.ExecuteDataTable(sqlCmd);
+                "SELECT orderID FROM order_ x, customer_account y WHERE x.customerAccountID = y.customerAccountID AND y.customerID = @customerID";
+            var dt = _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@customerID", id }
+            });
 
             List<string> orderID = new List<string>();
             for (int i = 0; i < dt.Rows.Count; i++)
@@ -103,22 +106,28 @@ namespace LMCIS.controller
             string sqlCmd = "SELECT x.feedbackID, x.customerID, x.orderID, x.content, x.feedbackDate " +
                             "FROM feedback x LEFT JOIN order_ z ON x.orderID = z.orderID LEFT JOIN " +
                             "staff_account y ON y.staffAccountID = z.staffAccountID";
-                
-
+            Dictionary<string, object> parameters = null;
 
             if (!isManager)
             {
-                sqlCmd += $" AND y.staffID = \'{staffID}\'";
+                sqlCmd += " WHERE y.staffID = @staffID";
+                parameters = new Dictionary<string, object>
+                {
+                    { "@staffID", staffID }
+                };
             }
 
-            return _db.ExecuteDataTable(sqlCmd);
+            return _db.ExecuteDataTable(sqlCmd, parameters);
         }
 
         public DataTable getFeedbackDetail(string feedbackID)
         {
             string sqlCmd =
-                $"SELECT feedBackID, customerID, orderID, content, feedbackDate FROM feedback WHERE feedBackID = \'{feedbackID}\'";
-            return _db.ExecuteDataTable(sqlCmd);
+                "SELECT feedBackID, customerID, orderID, content, feedbackDate FROM feedback WHERE feedBackID = @feedbackID";
+            return _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@feedbackID", feedbackID }
+            });
         }
     }
 }

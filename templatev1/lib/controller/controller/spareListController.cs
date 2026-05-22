@@ -11,6 +11,7 @@ namespace LMCIS.controller
         private Database db = new Database();
 
         private DataTable ExecuteQuery(string sqlCmd) => db.ExecuteDataTable(sqlCmd);
+        private DataTable ExecuteQuery(string sqlCmd, Dictionary<string, object> parameters) => db.ExecuteDataTable(sqlCmd, parameters);
 
         public DataTable getAllPart() => ExecuteQuery("SELECT * FROM spare_part WHERE status = 'Enable'");
 
@@ -18,8 +19,18 @@ namespace LMCIS.controller
         {
             string sqlCmd =
                 "SELECT * FROM spare_part x, product y WHERE x.partNumber = y.partNumber AND x.status = 'Enable'";
-            if (category != "All") sqlCmd += $" AND x.categoryID = '{category}'";
-            if (kw != "") sqlCmd += $" AND x.name LIKE '%{kw}%'";
+            var parameters = new Dictionary<string, object>();
+            if (category != "All")
+            {
+                sqlCmd += " AND x.categoryID = @categoryID";
+                parameters["@categoryID"] = category;
+            }
+
+            if (kw != "")
+            {
+                sqlCmd += " AND x.name LIKE @nameLike";
+                parameters["@nameLike"] = "%" + kw + "%";
+            }
             switch (sorting)
             {
                 case "Category":
@@ -36,21 +47,23 @@ namespace LMCIS.controller
                     break;
             }
 
-            return ExecuteQuery(sqlCmd);
+            return ExecuteQuery(sqlCmd, parameters);
         }
 
         public string getCategoryName(string id) =>
-            ExecuteQuery($"SELECT type FROM category WHERE categoryID = '{id}'").Rows[0][0].ToString();
+            ExecuteQuery("SELECT type FROM category WHERE categoryID = @categoryID",
+                new Dictionary<string, object> { { "@categoryID", id } }).Rows[0][0].ToString();
 
         public string getPrice(string num) =>
-            ExecuteQuery($"SELECT price FROM product WHERE partNumber = '{num}'").Rows[0][0].ToString();
+            ExecuteQuery("SELECT price FROM product WHERE partNumber = @partNumber",
+                new Dictionary<string, object> { { "@partNumber", num } }).Rows[0][0].ToString();
 
         public int getOnSaleQty(string num, Boolean isLM)
         {
             string sqlCmd = isLM
-                ? $"SELECT LM_onSaleQty FROM product WHERE partNumber = '{num}'"
-                : $"SELECT onSaleQty FROM product WHERE partNumber = '{num}'";
-            return int.Parse(ExecuteQuery(sqlCmd).Rows[0][0].ToString());
+                ? "SELECT LM_onSaleQty FROM product WHERE partNumber = @partNumber"
+                : "SELECT onSaleQty FROM product WHERE partNumber = @partNumber";
+            return int.Parse(ExecuteQuery(sqlCmd, new Dictionary<string, object> { { "@partNumber", num } }).Rows[0][0].ToString());
         }
 
         public Boolean addCart(string id, string num, int qty, Boolean isLM) =>

@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using System.Collections.Generic;
+using System.Data;
 using LMCIS.controller.Utilities;
 
 namespace LMCIS.controller
@@ -19,29 +20,49 @@ namespace LMCIS.controller
         public string GetCustomerAccountId(string id) //id = customerID
         {
             return _db.ExecuteDataTable(
-                    $"SELECT customerAccountID FROM customer_account WHERE customerID = '{id}'")
+                    "SELECT customerAccountID FROM customer_account WHERE customerID = @customerID",
+                    new Dictionary<string, object> { { "@customerID", id } })
                 .Rows[0][0].ToString();
         }
 
         public int CountOrder(string id, string sortBy, string kw)
         {
+            string customerAccountID = GetCustomerAccountId(id);
             string sqlCmd = sortBy == "All"
-                ? $"SELECT COUNT(*) FROM order_ WHERE customerAccountID = '{GetCustomerAccountId(id)}'"
-                : $"SELECT COUNT(*) FROM order_ WHERE customerAccountID = '{GetCustomerAccountId(id)}' AND status = '{sortBy}'";
+                ? "SELECT COUNT(*) FROM order_ WHERE customerAccountID = @customerAccountID AND orderID LIKE @orderIDLike"
+                : "SELECT COUNT(*) FROM order_ WHERE customerAccountID = @customerAccountID AND status = @status AND orderID LIKE @orderIDLike";
 
-            sqlCmd += $" AND orderID LIKE \'%{kw}%\'";
+            var parameters = new Dictionary<string, object>
+            {
+                { "@customerAccountID", customerAccountID },
+                { "@orderIDLike", "%" + kw + "%" }
+            };
+            if (sortBy != "All")
+            {
+                parameters.Add("@status", sortBy);
+            }
 
-            return int.Parse(_db.ExecuteDataTable(sqlCmd).Rows[0][0].ToString());
+            return int.Parse(_db.ExecuteDataTable(sqlCmd, parameters).Rows[0][0].ToString());
         }
 
         public DataTable GetOrder(string id, string sortBy, string kw)
         {
+            string customerAccountID = GetCustomerAccountId(id);
             string sqlCmd = sortBy == "All"
-                ? $"SELECT * FROM order_ WHERE customerAccountID = '{GetCustomerAccountId(id)}'"
-                : $"SELECT * FROM order_ WHERE customerAccountID = '{GetCustomerAccountId(id)}' AND status = '{sortBy}'";
+                ? "SELECT * FROM order_ WHERE customerAccountID = @customerAccountID AND orderID LIKE @orderIDLike"
+                : "SELECT * FROM order_ WHERE customerAccountID = @customerAccountID AND status = @status AND orderID LIKE @orderIDLike";
 
-            sqlCmd += $" AND orderID LIKE \'%{kw}%\'";
-            return _db.ExecuteDataTable(sqlCmd);
+            var parameters = new Dictionary<string, object>
+            {
+                { "@customerAccountID", customerAccountID },
+                { "@orderIDLike", "%" + kw + "%" }
+            };
+            if (sortBy != "All")
+            {
+                parameters.Add("@status", sortBy);
+            }
+
+            return _db.ExecuteDataTable(sqlCmd, parameters);
         }
 
         public string GetStafftId(string id) //staff account id

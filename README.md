@@ -18,6 +18,7 @@
     - [Hardware Requirements](#hardware-requirements)
     - [Software Requirements](#software-requirements)
   - [Installation](#installation)
+  - [Documentation](#documentation)
   - [Architecture](#architecture)
   - [Database Schema](#database-schema)
   - [Security](#security)
@@ -103,7 +104,34 @@ The setup process involves:
    - Launch the WinForms application
    - Log in with the provided default credentials
 
-For detailed installation instructions, refer to the [Docker Wiki](docker/wiki/README.md).
+For local setup, follow the Docker-first steps above.
+
+## Documentation
+
+For detailed setup and workflow documentation, use the Docker wiki as the active docs site:
+
+- Wiki home and commands: [docker/wiki/README.md](docker/wiki/README.md)
+- Installation roadmap content: `docker/wiki/src/content/docs/installation/**`
+- User workflow content: `docker/wiki/src/content/docs/user-guide/**`
+
+## Parallels VM Build Workflow
+
+Use this reusable host-side script when you need repeatable validation inside a Windows Parallels VM:
+
+`scripts/parallels-vm-build-check.sh --vm-id <vm-uuid> --repo-path /Users/mythic3014/project/Warehouse-Management-and-Online-Ordering-Platform`
+
+What it does:
+- Ensures the VM is running
+- Ensures the repo is shared into the VM
+- Resolves the guest repo path from `\\Mac\project\...`
+- Restores NuGet packages
+- Builds `templatev1/lib/controller/controller/controller.csproj`
+- Optionally builds `TestController/TestController.csproj`
+
+Useful flags:
+- `--skip-test-build` (controller-only verification)
+- `--skip-share` (reuse existing VM share)
+- `--log-file /path/to/log.txt` (save full execution log)
 
 ## Architecture
 

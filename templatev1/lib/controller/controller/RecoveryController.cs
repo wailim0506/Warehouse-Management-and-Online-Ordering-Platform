@@ -11,6 +11,12 @@ namespace LMCIS.controller
     public class RecoveryController : abstractController
     {
         private Database db;
+        private const string CustomerTable = "customer";
+        private const string StaffTable = "staff";
+        private const string CustomerAccountTable = "customer_account";
+        private const string StaffAccountTable = "staff_account";
+        private const string CustomerIdField = "customerID";
+        private const string StaffIdField = "staffID";
 
         public string UID;
         private string email, phone;
@@ -50,13 +56,15 @@ namespace LMCIS.controller
             DataTable dt = new DataTable();
             try
             {
-                string table = UID.StartsWith("LMC") ? "customer" : UID.StartsWith("LMS") ? "staff" : null;
-                if (table == null) return false;
+                sqlStr = ResolveFindUserQuery(UID);
+                if (string.IsNullOrEmpty(sqlStr)) return false;
 
-                sqlStr =
-                    $"SELECT * FROM {table} WHERE {(table == "customer" ? "customerID" : "staffID")} = '{UID}' AND (phoneNumber = '{phone}' OR emailAddress = '{email}')";
-                
-                Dictionary<string, object> queryParameters = new Dictionary<string, object> { { "@id", UID } };
+                Dictionary<string, object> queryParameters = new Dictionary<string, object>
+                {
+                    { "@id", UID },
+                    { "@phone", phone },
+                    { "@email", email }
+                };
                 dt = db.ExecuteDataTable(sqlStr, queryParameters);
                 Log.LogMessage(LogLevel.Debug, "Recovery Controller",
                     $"FindUser: UserID = {UID}, email = {email}, phone = {phone}");
@@ -72,7 +80,7 @@ namespace LMCIS.controller
         //Value for listbox.
         public List<string> GetCity(string province)
         {
-            var query = $"SELECT city FROM location WHERE province = '{province}'";
+            var query = "SELECT city FROM location WHERE province = @province";
             DataTable dataTable =
                 db.ExecuteDataTable(query, new Dictionary<string, object> { { "@province", province } });
             Log.LogMessage(LogLevel.Debug, "Recovery Controller", $"GetCity: Province = {province}");
@@ -91,12 +99,13 @@ namespace LMCIS.controller
         public void ChangePassword(string newPwd)
         {
             string hashedPwd = HashPassword(newPwd);
-            string table = UID.StartsWith("LMC") ? "customer_account" : "staff_account";
-            string idField = UID.StartsWith("LMC") ? "customerID" : "staffID";
-
-            string sqlStr =
-                $"UPDATE {table} SET password = '{hashedPwd}', pwdChangeDate = '{DateTime.Now:yyyy-MM-dd HH:mm:ss}' WHERE {idField} = '{UID}'";
-            db.ExecuteNonQueryCommand(sqlStr, new Dictionary<string, object> { { "@id", UID } });
+            string sqlStr = ResolveChangePasswordQuery(UID);
+            db.ExecuteNonQueryCommand(sqlStr, new Dictionary<string, object>
+            {
+                { "@password", hashedPwd },
+                { "@pwdChangeDate", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
+                { "@id", UID }
+            });
             Log.LogMessage(LogLevel.Debug, "Recovery Controller",
                 $"ChangePassword: UserID = {UID}, new password = {newPwd}");
         }
@@ -116,6 +125,42 @@ namespace LMCIS.controller
             string salt = BCrypt.Net.BCrypt.GenerateSalt();
             Log.LogMessage(LogLevel.Debug, "Recovery Controller", $"HashPassword: Salt = {salt}");
             return BCrypt.Net.BCrypt.HashPassword(password, salt);
+        }
+
+        private static string ResolveFindUserQuery(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId)) return null;
+            if (userId.StartsWith("LMC"))
+            {
+                return $"SELECT * FROM {CustomerTable} WHERE {CustomerIdField} = @id AND (phoneNumber = @phone OR emailAddress = @email)";
+            }
+
+            if (userId.StartsWith("LMS"))
+            {
+                return $"SELECT * FROM {StaffTable} WHERE {StaffIdField} = @id AND (phoneNumber = @phone OR emailAddress = @email)";
+            }
+
+            return null;
+        }
+
+        private static string ResolveChangePasswordQuery(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                throw new ArgumentException("User ID is required.", nameof(userId));
+            }
+
+            if (userId.StartsWith("LMC"))
+            {
+                return $"UPDATE {CustomerAccountTable} SET password = @password, pwdChangeDate = @pwdChangeDate WHERE {CustomerIdField} = @id";
+            }
+
+            if (userId.StartsWith("LMS"))
+            {
+                return $"UPDATE {StaffAccountTable} SET password = @password, pwdChangeDate = @pwdChangeDate WHERE {StaffIdField} = @id";
+            }
+
+            throw new ArgumentException($"Unsupported user ID prefix: {userId}", nameof(userId));
         }
 
         //For create a new customer accounr.

@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using System.Collections.Generic;
+using System.Data;
 using LMCIS.controller.Utilities;
 
 namespace LMCIS.controller
@@ -14,14 +15,17 @@ namespace LMCIS.controller
 
         public DataTable getData(string category, string sortBy, string id) //id = order id 
         {
-            DataTable dt;
-            string sqlCmd = "SELECT x.partNumber, y.name, x.quantity, y.categoryID FROM order_line x, spare_part y " +
-                            $"WHERE x.partNumber = y.partNumber AND x.orderID = \'{id}\'";
-
-
+            const string baseQuery =
+                "SELECT x.partNumber, y.name, x.quantity, y.categoryID FROM order_line x, spare_part y WHERE x.partNumber = y.partNumber AND x.orderID = @orderID";
+            string sqlCmd = baseQuery;
+            var parameters = new Dictionary<string, object>
+            {
+                { "@orderID", id }
+            };
             if (category != "All")
             {
-                sqlCmd += $" AND y.categoryID = \'{category}\'";
+                sqlCmd += " AND y.categoryID = @categoryID";
+                parameters.Add("@categoryID", category);
             }
 
             switch (sortBy)
@@ -39,13 +43,11 @@ namespace LMCIS.controller
                     sqlCmd += " ORDER BY x.quantity DESC";
                     break;
                 default: //sort by = none
-                    sqlCmd += "";
                     break;
             }
 
 
-            dt = _db.ExecuteDataTable(sqlCmd, null);
-            return dt;
+            return _db.ExecuteDataTable(sqlCmd, parameters);
         }
     }
 }

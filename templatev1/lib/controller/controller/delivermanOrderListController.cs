@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using System.Collections.Generic;
+using System.Data;
 using LMCIS.controller.Utilities;
 
 namespace LMCIS.controller
@@ -16,35 +17,38 @@ namespace LMCIS.controller
         {
             string delivermanID = getDelivermanID(id);
             string status = "Ready to Ship";
-            string sqlCmd = "";
+            string sqlCmd = sortBy == "Nearest Dates"
+                ? "SELECT x.*, y.status FROM shipping_detail x, order_ y WHERE x.delivermanID = @delivermanID AND x.orderID = y.orderID AND y.status = @status"
+                : "SELECT x.*, y.status FROM shipping_detail x, order_ y WHERE x.delivermanID = @delivermanID AND x.orderID = y.orderID AND y.status = @status ORDER BY shippingDate DESC";
 
-            sqlCmd = sortBy == "Nearest Dates"
-                ? $"SELECT x.*,y.status from shipping_detail x, order_ y WHERE x.delivermanID = \'{delivermanID}\' AND x.orderID = y.orderID AND y.status = \'{status}\'"
-                : $"SELECT x.*,y.status from shipping_detail x, order_ y WHERE x.delivermanID = \'{delivermanID}\' AND x.orderID = y.orderID AND y.status = \'{status}\' ORDER BY shippingDate DESC";
-
-            return _db.ExecuteDataTable(sqlCmd);
+            return _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@delivermanID", delivermanID },
+                { "@status", status }
+            });
         }
 
         public DataTable GetAllFinishedOrder(string id, string sortBy) //staff id
         {
             string delivermanID = getDelivermanID(id);
             string status = "Shipped";
-            string sqlCmd = "";
-
-            sqlCmd = sortBy == "Nearest Dates"
-                ? $"SELECT x.*,y.status from shipping_detail x, order_ y " +
-                  $"WHERE x.delivermanID = \'{delivermanID}\' AND x.orderID = y.orderID AND y.status = \'{status}\' " +
-                  $"ORDER BY shippingDate DESC"
-                : $"SELECT x.*,y.status from shipping_detail x, order_ y " +
-                  $"WHERE x.delivermanID = \'{delivermanID}\' AND x.orderID = y.orderID AND y.status = \'{status}\'";
-            return _db.ExecuteDataTable(sqlCmd);
+            string sqlCmd = sortBy == "Nearest Dates"
+                ? "SELECT x.*, y.status FROM shipping_detail x, order_ y WHERE x.delivermanID = @delivermanID AND x.orderID = y.orderID AND y.status = @status ORDER BY shippingDate DESC"
+                : "SELECT x.*, y.status FROM shipping_detail x, order_ y WHERE x.delivermanID = @delivermanID AND x.orderID = y.orderID AND y.status = @status";
+            return _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@delivermanID", delivermanID },
+                { "@status", status }
+            });
         }
 
         public string getDelivermanID(string id) //staff id
         {
-            string sqlCmd =
-                $"SELECT delivermanID from staff WHERE staffID = \'{id}\'";
-            return _db.ExecuteDataTable(sqlCmd).Rows[0][0].ToString();
+            string sqlCmd = "SELECT delivermanID FROM staff WHERE staffID = @staffID";
+            return _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@staffID", id }
+            }).Rows[0][0].ToString();
         }
     }
 }

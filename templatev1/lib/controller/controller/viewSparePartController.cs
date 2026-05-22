@@ -21,8 +21,12 @@ namespace LMCIS.controller
         public DataTable GetInfo(string partNun) //part num
         {
             _sqlCmd =
-                $"SELECT * FROM spare_part x, product y, supplier z WHERE x.partNumber = y.partNumber AND x.partNumber =\'{partNun}\' AND x.supplierID = z.supplierID";
-            DataTable dt = _database.ExecuteDataTable(_sqlCmd);
+                "SELECT * FROM spare_part x, product y, supplier z " +
+                "WHERE x.partNumber = y.partNumber AND x.partNumber = @partNum AND x.supplierID = z.supplierID";
+            DataTable dt = _database.ExecuteDataTable(_sqlCmd, new Dictionary<string, object>
+            {
+                { "@partNum", partNun }
+            });
             return dt;
         }
 
@@ -48,27 +52,43 @@ namespace LMCIS.controller
         {
             //get cart id of the customer first
             _sqlCmd =
-                $"SELECT cartID FROM cart x, customer_account y where x.customerAccountID = y.customerAccountID AND y.customerID = \'{id}\'";
-            DataTable dt = _database.ExecuteDataTable(_sqlCmd);
+                "SELECT cartID FROM cart x, customer_account y " +
+                "WHERE x.customerAccountID = y.customerAccountID AND y.customerID = @customerID";
+            DataTable dt = _database.ExecuteDataTable(_sqlCmd, new Dictionary<string, object>
+            {
+                { "@customerID", id }
+            });
             string cartID = dt.Rows[0][0].ToString();
 
             //get item id
             _sqlCmd =
-                $"SELECT itemID from product x, spare_part y where x.partNumber = y.partNumber AND y.partNumber = \'{num}\'";
-            dt = _database.ExecuteDataTable(_sqlCmd);
+                "SELECT itemID FROM product x, spare_part y " +
+                "WHERE x.partNumber = y.partNumber AND y.partNumber = @partNum";
+            dt = _database.ExecuteDataTable(_sqlCmd, new Dictionary<string, object>
+            {
+                { "@partNum", num }
+            });
             string itemID = dt.Rows[0][0].ToString();
 
             //check in cart or not first
-            _sqlCmd = $"SELECT * FROM product_in_cart WHERE itemID = '{itemID}' AND cartID = '{cartID}'";
-            dt = _database.ExecuteDataTable(_sqlCmd);
+            _sqlCmd = "SELECT * FROM product_in_cart WHERE itemID = @itemID AND cartID = @cartID";
+            dt = _database.ExecuteDataTable(_sqlCmd, new Dictionary<string, object>
+            {
+                { "@itemID", itemID },
+                { "@cartID", cartID }
+            });
             Boolean isInCart = (dt.Rows.Count > 0);
 
             if (isInCart)
             {
                 //get qty already in cart first
                 _sqlCmd =
-                    $"SELECT quantity FROM product_in_cart WHERE itemID = '{itemID}' AND cartID = '{cartID}'";
-                dt = _database.ExecuteDataTable(_sqlCmd);
+                    "SELECT quantity FROM product_in_cart WHERE itemID = @itemID AND cartID = @cartID";
+                dt = _database.ExecuteDataTable(_sqlCmd, new Dictionary<string, object>
+                {
+                    { "@itemID", itemID },
+                    { "@cartID", cartID }
+                });
                 int qtyAlreadyInCart = int.Parse(dt.Rows[0][0].ToString());
 
                 //new qty in cart
@@ -76,10 +96,12 @@ namespace LMCIS.controller
 
                 //update cart value
                 _sqlCmd =
-                    $"UPDATE product_in_cart SET quantity = @qty WHERE itemID = \'{itemID}\' AND cartID = \'{cartID}\'";
+                    "UPDATE product_in_cart SET quantity = @qty WHERE itemID = @itemID AND cartID = @cartID";
                 Dictionary<string, object> parameters = new Dictionary<string, object>
                 {
-                    { "@qty", newQty }
+                    { "@qty", newQty },
+                    { "@itemID", itemID },
+                    { "@cartID", cartID }
                 };
 
                 try
@@ -125,7 +147,7 @@ namespace LMCIS.controller
         {
             // no need to deduct from spare part table when add to cart, only deduct from product table
             //get qty in spare_part table first
-            // sqlCmd = $"SELECT quantity FROM spare_part WHERE partNumber = \'{partNum}\'";
+            // sqlCmd = "SELECT quantity FROM spare_part WHERE partNumber = @partNum";
             // DataTable dt = _database.ExecuteDataTable(sqlCmd);
             // int qtyInDB = int.Parse(dt.Rows[0][0].ToString());
             //
@@ -152,10 +174,13 @@ namespace LMCIS.controller
 
             //get qty in product table 
             _sqlCmd = !isLM
-                ? $"SELECT OnSaleQty FROM product WHERE itemID = \'{itemID}\'"
-                : $"SELECT LM_OnSaleQty FROM product WHERE itemID = \'{itemID}\'";
+                ? "SELECT OnSaleQty FROM product WHERE itemID = @itemID"
+                : "SELECT LM_OnSaleQty FROM product WHERE itemID = @itemID";
 
-            DataTable dt = _database.ExecuteDataTable(_sqlCmd);
+            DataTable dt = _database.ExecuteDataTable(_sqlCmd, new Dictionary<string, object>
+            {
+                { "@itemID", itemID }
+            });
             int qtyInDB = int.Parse(dt.Rows[0][0].ToString());
 
             //new qty in product

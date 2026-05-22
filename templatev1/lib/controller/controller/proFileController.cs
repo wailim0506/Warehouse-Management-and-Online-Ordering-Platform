@@ -62,8 +62,8 @@ namespace LMCIS.controller
         private void GetDfAdd()
         {
             DataTable dt = new DataTable();
-            string query = $"SELECT dfadd FROM customer_dfadd WHERE customerID = \'{UID}\'";
-            dt = _db.ExecuteDataTable(query);
+            string query = "SELECT dfadd FROM customer_dfadd WHERE customerID = @customerID";
+            dt = _db.ExecuteDataTable(query, new Dictionary<string, object> { { "@customerID", UID } });
             Log.LogMessage(LogLevel.Debug, "proFileController", $"GetDfAdd: DFAdd = {dfadd}");
             dfadd = int.Parse(dt.Rows[0]["dfadd"].ToString());
         }
@@ -83,20 +83,20 @@ namespace LMCIS.controller
             if (accountType.Equals("Staff")) //Staff info
             {
                 sqlStr =
-                    $"SELECT jobTitle, name, emailAddress, firstName, lastName, status, sex, phoneNumber, dateOfBirth, createDate " +
-                    $"FROM staff S, department D, staff_account SA WHERE S.deptID = D.deptID AND S.staffID = \'{UID}\' AND SA.staffID = \'{UID}\'";
+                    "SELECT jobTitle, name, emailAddress, firstName, lastName, status, sex, phoneNumber, dateOfBirth, createDate " +
+                    "FROM staff S, department D, staff_account SA WHERE S.deptID = D.deptID AND S.staffID = @uid AND SA.staffID = @uid";
             }
             else //Customer info
             {
                 GetDfAdd();
                 sqlStr =
-                    $"SELECT emailAddress, firstName, lastName, isLM, status, sex, phoneNumber, dateOfBirth, createDate, paymentMethod, province, " +
-                    $"city, companyAddress, warehouseAddress, company, warehouseAddress2 " +
-                    $"FROM customer_account CA, customer C WHERE CA.customerID = \'{UID}\' AND C.customerID = \'{UID}\'";
+                    "SELECT emailAddress, firstName, lastName, isLM, status, sex, phoneNumber, dateOfBirth, createDate, paymentMethod, province, " +
+                    "city, companyAddress, warehouseAddress, company, warehouseAddress2 " +
+                    "FROM customer_account CA, customer C WHERE CA.customerID = @uid AND C.customerID = @uid";
             }
 
 
-            dt = _db.ExecuteDataTable(sqlStr);
+            dt = _db.ExecuteDataTable(sqlStr, new Dictionary<string, object> { { "@uid", UID } });
             Log.LogMessage(LogLevel.Debug, "proFileController", $"UserInfo: SQL = {sqlStr}");
 
             //Set user data to gobal variable
@@ -167,8 +167,8 @@ namespace LMCIS.controller
             DataTable dt = new DataTable();
 
             sqlStr =
-                $"SELECT province, city, companyAddress, warehouseAddress, warehouseAddress2 FROM customer WHERE customerID =\'{UID}\'";
-            dt = _db.ExecuteDataTable(sqlStr, null);
+                "SELECT province, city, companyAddress, warehouseAddress, warehouseAddress2 FROM customer WHERE customerID = @customerID";
+            dt = _db.ExecuteDataTable(sqlStr, new Dictionary<string, object> { { "@customerID", UID } });
             AddInfo.province = province;
             AddInfo.city = city;
             AddInfo.corpAdd = caddress;
@@ -183,8 +183,8 @@ namespace LMCIS.controller
         public List<string> GetCity(string province)
         {
             DataTable dt = new DataTable();
-            sqlStr = $"SELECT city FROM location WHERE province = \'{province}\'";
-            dt = _db.ExecuteDataTable(sqlStr, null);
+            sqlStr = "SELECT city FROM location WHERE province = @province";
+            dt = _db.ExecuteDataTable(sqlStr, new Dictionary<string, object> { { "@province", province } });
             List<string> city = new List<string>();
 
             for (int i = 0; i <= dt.Rows.Count - 1; i++)
@@ -198,8 +198,8 @@ namespace LMCIS.controller
         public List<string> getpriovince()
         {
             DataTable dt = new DataTable();
-            sqlStr = $"SELECT DISTINCT province FROM location";
-            dt = _db.ExecuteDataTable(sqlStr, null);
+            sqlStr = "SELECT DISTINCT province FROM location";
+            dt = _db.ExecuteDataTable(sqlStr);
             List<string> priovince = new List<string>();
 
             for (int i = 0; i <= (dt.Rows.Count - 1); i++)

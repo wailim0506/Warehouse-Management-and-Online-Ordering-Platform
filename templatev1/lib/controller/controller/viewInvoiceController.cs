@@ -17,20 +17,26 @@ namespace LMCIS.controller
 
         public string GetOrderDate(string id) //order id
         {
-            return _db.ExecuteDataTable($"SELECT orderDate FROM order_ WHERE orderID = '{id}'").Rows[0][0]
+            return _db.ExecuteDataTable("SELECT orderDate FROM order_ WHERE orderID = @orderID",
+                    new Dictionary<string, object> { { "@orderID", id } }).Rows[0][0]
                 .ToString();
         }
 
         public string GetCustomerId(string id)
         {
+            string customerAccountID = _db.ExecuteDataTable("SELECT customerAccountID FROM order_ WHERE orderID = @orderID",
+                new Dictionary<string, object> { { "@orderID", id } }).Rows[0][0].ToString();
             return _db.ExecuteDataTable(
-                    $"SELECT customerID FROM customer_account WHERE customerAccountID = '{_db.ExecuteDataTable($"SELECT customerAccountID FROM order_ WHERE orderID = '{id}'").Rows[0][0]}'")
-                .Rows[0][0].ToString();
+                    "SELECT customerID FROM customer_account WHERE customerAccountID = @customerAccountID",
+                    new Dictionary<string, object> { { "@customerAccountID", customerAccountID } })
+                .Rows[0][0]
+                .ToString();
         }
 
         public string GetInvoiceNum(string id)
         {
-            return _db.ExecuteDataTable($"SELECT invoiceNumber FROM invoice WHERE orderID = '{id}'")
+            return _db.ExecuteDataTable("SELECT invoiceNumber FROM invoice WHERE orderID = @orderID",
+                    new Dictionary<string, object> { { "@orderID", id } })
                 .Rows[0][0]
                 .ToString();
         }
@@ -39,7 +45,8 @@ namespace LMCIS.controller
         {
             return string.Join(", ",
                 _db.ExecuteDataTable(
-                        $"SELECT companyAddress, province, city FROM customer WHERE customerID = '{GetCustomerId(id)}'")
+                        "SELECT companyAddress, province, city FROM customer WHERE customerID = @customerID",
+                        new Dictionary<string, object> { { "@customerID", GetCustomerId(id) } })
                     .Rows[0].ItemArray);
         }
 
@@ -47,20 +54,23 @@ namespace LMCIS.controller
         {
             return string.Join(", ",
                 _db.ExecuteDataTable(
-                        $"SELECT warehouseAddress, province, city FROM customer WHERE customerID = '{GetCustomerId(id)}'")
+                        "SELECT warehouseAddress, province, city FROM customer WHERE customerID = @customerID",
+                        new Dictionary<string, object> { { "@customerID", GetCustomerId(id) } })
                     .Rows[0].ItemArray);
         }
 
         public string[] GetOrderedSparePartNumber(string id)
         {
-            return _db.ExecuteDataTable($"SELECT partNumber FROM order_line WHERE orderID = '{id}'")
+            return _db.ExecuteDataTable("SELECT partNumber FROM order_line WHERE orderID = @orderID",
+                    new Dictionary<string, object> { { "@orderID", id } })
                 .AsEnumerable()
                 .Select(row => row[0].ToString()).ToArray();
         }
 
         public string GetPartName(string num) //part num
         {
-            return _db.ExecuteDataTable($"SELECT name FROM spare_part WHERE partNumber = '{num}'")
+            return _db.ExecuteDataTable("SELECT name FROM spare_part WHERE partNumber = @partNumber",
+                    new Dictionary<string, object> { { "@partNumber", num } })
                 .Rows[0][0]
                 .ToString();
         }
@@ -69,13 +79,15 @@ namespace LMCIS.controller
         {
             return int.Parse(
                 _db.ExecuteDataTable(
-                        $"SELECT quantity FROM order_line WHERE partNumber = '{num}' AND orderID = '{id}'")
+                        "SELECT quantity FROM order_line WHERE partNumber = @partNumber AND orderID = @orderID",
+                        new Dictionary<string, object> { { "@partNumber", num }, { "@orderID", id } })
                     .Rows[0][0].ToString());
         }
 
         public string GetDeliveryDate(string id)
         {
-            return _db.ExecuteDataTable($"SELECT shippingDate FROM shipping_detail WHERE orderID = '{id}'")
+            return _db.ExecuteDataTable("SELECT shippingDate FROM shipping_detail WHERE orderID = @orderID",
+                    new Dictionary<string, object> { { "@orderID", id } })
                 .Rows[0][0]
                 .ToString().Split(' ')[0];
         }

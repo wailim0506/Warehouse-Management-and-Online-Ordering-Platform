@@ -123,11 +123,7 @@ namespace LMCIS.controller
 
         public void EditRelay(string orderId, int relayId)
         {
-            var sql = "SELECT DeliveryRelayID FROM order_ WHERE OrderID = @orderId";
-            _database.ExecuteDataTable(sql, new Dictionary<string, object> { { "@orderId", orderId } });
-
-            sql = "UPDATE order_ SET DeliveryRelayID = @relayId WHERE OrderID = @orderId";
-
+            var sql = "UPDATE order_ SET DeliveryRelayID = @relayId WHERE OrderID = @orderId";
             _database.ExecuteNonQueryCommand(sql,
                 new Dictionary<string, object> { { "@orderId", orderId }, { "@relayId", relayId } });
         }

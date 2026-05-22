@@ -17,6 +17,10 @@ namespace LMCIS.controller
             bool isStoreman) //id = staff id
         {
             string sqlCmd = "";
+            var parameters = new Dictionary<string, object>
+            {
+                { "@orderIdLike", "%" + kw + "%" }
+            };
             var sortByOptions = new Dictionary<string, string>
             {
                 { "Id", "x.orderID" },
@@ -29,21 +33,22 @@ namespace LMCIS.controller
                 { "cIdDESC", "y.customerID DESC" }
             };
 
-            if (!sortByOptions.ContainsKey(sortBy)) return _db.ExecuteDataTable(sqlCmd, null);
-            sqlCmd = $"SELECT x.orderID, x.orderDate, y.customerID, z.shippingDate, x.status FROM order_ x, " +
-                     $"customer_account y, shipping_detail z";
+            if (!sortByOptions.ContainsKey(sortBy)) return new DataTable();
+            sqlCmd = "SELECT x.orderID, x.orderDate, y.customerID, z.shippingDate, x.status FROM order_ x, " +
+                     "customer_account y, shipping_detail z";
 
             if (!isManager)
             {
                 if (!isStoreman)
                 {
                     sqlCmd +=
-                        $", staff_account aa WHERE x.orderID = z.orderID AND y.customerAccountID = x.customerAccountID AND x.staffAccountID = aa.staffAccountID AND aa.staffID = \'{id}\'";
+                        ", staff_account aa WHERE x.orderID = z.orderID AND y.customerAccountID = x.customerAccountID AND x.staffAccountID = aa.staffAccountID AND aa.staffID = @staffID";
+                    parameters.Add("@staffID", id);
                 }
                 else
                 {
                     sqlCmd +=
-                        $", staff_account aa WHERE x.orderID = z.orderID AND y.customerAccountID = x.customerAccountID AND x.staffAccountID = aa.staffAccountID AND x.status = \'Processing\'";
+                        ", staff_account aa WHERE x.orderID = z.orderID AND y.customerAccountID = x.customerAccountID AND x.staffAccountID = aa.staffAccountID AND x.status = 'Processing'";
                 }
             }
             else
@@ -58,14 +63,15 @@ namespace LMCIS.controller
 
             if (status != "All")
             {
-                sqlCmd += $" AND x.status = '{status}'";
+                sqlCmd += " AND x.status = @status";
+                parameters.Add("@status", status);
             }
 
-            sqlCmd += $" AND x.orderID LIKE \'%{kw}%\'";
+            sqlCmd += " AND x.orderID LIKE @orderIdLike";
 
             sqlCmd += $" ORDER BY {sortByOptions[sortBy]}";
 
-            return _db.ExecuteDataTable(sqlCmd, null);
+            return _db.ExecuteDataTable(sqlCmd, parameters);
         }
     }
 }

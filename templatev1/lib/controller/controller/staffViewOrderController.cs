@@ -19,9 +19,9 @@ namespace LMCIS.controller
 
         public DataTable getOrder(string id) //orderID
         {
-            string sqlCmd = $"SELECT * FROM order_ WHERE orderID = \'{id}\'";
+            string sqlCmd = "SELECT * FROM order_ WHERE orderID = @orderID";
             DataTable dt = new DataTable();
-            dt = _db.ExecuteDataTable(sqlCmd, null);
+            dt = _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object> { { "@orderID", id } });
             return dt;
         }
 
@@ -51,45 +51,45 @@ namespace LMCIS.controller
             switch (sortBy)
             {
                 case "None":
-                    sqlCmd = $"SELECT *,(quantity*orderUnitPrice)FROM order_line WHERE orderID = \'{id}\'";
+                    sqlCmd = "SELECT *,(quantity*orderUnitPrice)FROM order_line WHERE orderID = @orderID";
                     break;
                 case "Quantity(Ascending)":
                     sqlCmd =
-                        $"SELECT *,(quantity*orderUnitPrice) FROM order_line WHERE orderID = \'{id}\' ORDER BY quantity";
+                        "SELECT *,(quantity*orderUnitPrice) FROM order_line WHERE orderID = @orderID ORDER BY quantity";
                     break;
                 case "Quantity(Descending)":
                     sqlCmd =
-                        $"SELECT *,(quantity*orderUnitPrice) FROM order_line WHERE orderID = \'{id}\' ORDER BY quantity DESC";
+                        "SELECT *,(quantity*orderUnitPrice) FROM order_line WHERE orderID = @orderID ORDER BY quantity DESC";
                     break;
                 case "Total Price(Ascending)":
                     sqlCmd =
-                        $"SELECT *,(quantity*orderUnitPrice) FROM order_line WHERE orderID = \'{id}\' ORDER BY (quantity*orderUnitPrice)";
+                        "SELECT *,(quantity*orderUnitPrice) FROM order_line WHERE orderID = @orderID ORDER BY (quantity*orderUnitPrice)";
                     break;
                 case "Total Price(Descending)":
                     sqlCmd =
-                        $"SELECT *,(quantity*orderUnitPrice) FROM order_line WHERE orderID = \'{id}\' ORDER BY (quantity*orderUnitPrice) DESC";
+                        "SELECT *,(quantity*orderUnitPrice) FROM order_line WHERE orderID = @orderID ORDER BY (quantity*orderUnitPrice) DESC";
                     break;
             }
 
             DataTable dt = new DataTable();
-            dt = _db.ExecuteDataTable(sqlCmd, null);
+            dt = _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object> { { "@orderID", id } });
             return dt;
         }
 
 
         public string getItemNum(string id) //part number
         {
-            string query = $"SELECT itemID FROM product WHERE partNumber = \'{id}\'";
+            string query = "SELECT itemID FROM product WHERE partNumber = @partNumber";
             DataTable dt = new DataTable();
-            dt = _db.ExecuteDataTable(query, null);
+            dt = _db.ExecuteDataTable(query, new Dictionary<string, object> { { "@partNumber", id } });
             return dt.Rows[0][0].ToString();
         }
 
         public string getPartName(string id)
         {
             DataTable dt = new DataTable();
-            string query = $"SELECT name FROM spare_part WHERE partNumber = \'{id}\'";
-            dt = _db.ExecuteDataTable(query, null);
+            string query = "SELECT name FROM spare_part WHERE partNumber = @partNumber";
+            dt = _db.ExecuteDataTable(query, new Dictionary<string, object> { { "@partNumber", id } });
             return dt.Rows[0][0].ToString();
         }
 
@@ -97,19 +97,21 @@ namespace LMCIS.controller
         {
             //orderID
             DataTable dt = new DataTable();
-            string query = $"SELECT * FROM shipping_detail WHERE orderID = \'{id}\'";
-            dt = _db.ExecuteDataTable(query, null);
+            string query = "SELECT * FROM shipping_detail WHERE orderID = @orderID";
+            dt = _db.ExecuteDataTable(query, new Dictionary<string, object> { { "@orderID", id } });
             return dt;
         }
 
         public string[] GetDelivermanDetail(string id) //orderID
         {
             string delivermanID = ExecuteSqlQueryAndReturnFirstRow(
-                $"SELECT delivermanID FROM shipping_detail WHERE orderID = \'{id}\'");
+                "SELECT delivermanID FROM shipping_detail WHERE orderID = @orderID",
+                new Dictionary<string, object> { { "@orderID", id } });
 
             //get deliverman name and contact from staff table
             DataTable dt = _db.ExecuteDataTable(
-                $"SELECT firstName, lastName, phoneNumber FROM staff WHERE delivermanID = \'{delivermanID}\'", null);
+                "SELECT firstName, lastName, phoneNumber FROM staff WHERE delivermanID = @delivermanID",
+                new Dictionary<string, object> { { "@delivermanID", delivermanID } });
 
             return new string[] { dt.Rows[0][0].ToString(), dt.Rows[0][1].ToString(), dt.Rows[0][2].ToString() };
         }
@@ -117,8 +119,8 @@ namespace LMCIS.controller
         public Dictionary<string, int> GetPartNumWithQty(string id) //order id
         {
             DataTable dt = new DataTable();
-            string sqlCmd = $"SELECT partNumber, quantity FROM order_line WHERE orderID = \'{id}\'";
-            dt = _db.ExecuteDataTable(sqlCmd, null);
+            string sqlCmd = "SELECT partNumber, quantity FROM order_line WHERE orderID = @orderID";
+            dt = _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object> { { "@orderID", id } });
 
             Dictionary<string, int> partNumQty = new Dictionary<string, int>();
 
@@ -198,9 +200,9 @@ namespace LMCIS.controller
             return true;
         }
 
-        private string ExecuteSqlQueryAndReturnFirstRow(string s)
+        private string ExecuteSqlQueryAndReturnFirstRow(string query, Dictionary<string, object> parameters = null)
         {
-            DataTable dt = _db.ExecuteDataTable(s, null);
+            DataTable dt = _db.ExecuteDataTable(query, parameters);
             return dt.Rows[0][0].ToString();
         }
 
@@ -209,7 +211,8 @@ namespace LMCIS.controller
         {
             //get deliverman name and contact from staff table
             DataTable dt = _db.ExecuteDataTable(
-                $"SELECT status FROM order_ WHERE orderID = \'{orderID}\'", null);
+                "SELECT status FROM order_ WHERE orderID = @orderID",
+                new Dictionary<string, object> { { "@orderID", orderID } });
 
             return dt.Rows[0]["status"].ToString().Equals("Processing");
         }
@@ -222,11 +225,13 @@ namespace LMCIS.controller
                 if (CheckStatus(orderID))
                 {
                     _db.ExecuteNonQueryCommand(
-                        $"UPDATE order_line OL, spare_part SP SET SP.quantity = SP.quantity - OL.quantity " +
-                        $"WHERE OL.partNumber = SP.partNumber AND OL.orderID = \'{orderID}\'", null);
+                        "UPDATE order_line OL, spare_part SP SET SP.quantity = SP.quantity - OL.quantity " +
+                        "WHERE OL.partNumber = SP.partNumber AND OL.orderID = @orderID",
+                        new Dictionary<string, object> { { "@orderID", orderID } });
 
                     _db.ExecuteNonQueryCommand(
-                        $"UPDATE order_ SET status = 'Ready to Ship' WHERE orderID = \'{orderID}\'", null);
+                        "UPDATE order_ SET status = 'Ready to Ship' WHERE orderID = @orderID",
+                        new Dictionary<string, object> { { "@orderID", orderID } });
 
                     return true;
                 }

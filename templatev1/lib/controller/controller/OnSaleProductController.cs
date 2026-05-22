@@ -70,13 +70,13 @@ namespace LMCIS.controller
             dt = new DataTable();
 
             sqlStr =
-                $"SELECT P.itemID, P.partNumber, P.onSaleQty, P.LM_onSaleQty, P.price, P.description, SUPP.country, " +
-                $"P.lastModified, P.status, P.onShelvesDate, C.type, SP.name, SP.quantity, SUPP.name AS suppName, SUPP.supplierID " +
-                $"FROM product P, category C, spare_part SP, supplier SUPP " +
-                $"WHERE P.category = C.categoryID AND P.partNumber = SP.partNumber " +
-                $"AND SP.supplierID = SUPP.supplierID AND itemID = \'{itemID}\'";
+                "SELECT P.itemID, P.partNumber, P.onSaleQty, P.LM_onSaleQty, P.price, P.description, SUPP.country, " +
+                "P.lastModified, P.status, P.onShelvesDate, C.type, SP.name, SP.quantity, SUPP.name AS suppName, SUPP.supplierID " +
+                "FROM product P, category C, spare_part SP, supplier SUPP " +
+                "WHERE P.category = C.categoryID AND P.partNumber = SP.partNumber " +
+                "AND SP.supplierID = SUPP.supplierID AND itemID = @itemID";
 
-            dt = db.ExecuteDataTable(sqlStr);
+            dt = db.ExecuteDataTable(sqlStr, new Dictionary<string, object> { { "@itemID", itemID } });
 
             dynamic ProductInfo = new ExpandoObject();
             ProductInfo.itemID = dt.Rows[0]["itemID"].ToString();
@@ -100,17 +100,21 @@ namespace LMCIS.controller
 
         public DataTable SearchProduct(string ItemID)
         {
-            sqlStr = $"SELECT itemID, type, onSaleQty, LM_onSaleQty, price, status, onShelvesDate " +
-                     $"FROM product P, category C WHERE P.category = C.categoryID AND itemID = \'{ItemID}\'";
-            return ExecuteSqlQuery(sqlStr);
+            sqlStr = "SELECT itemID, type, onSaleQty, LM_onSaleQty, price, status, onShelvesDate " +
+                     "FROM product P, category C WHERE P.category = C.categoryID AND itemID = @itemID";
+            return db.ExecuteDataTable(sqlStr, new Dictionary<string, object> { { "@itemID", ItemID } });
         }
 
         public void RemoveFromShelve(string ItemID)
         {
             sqlStr =
-                $"UPDATE product SET status = 'Disable', lastModified = \'{accountController.GetUid()}\' WHERE itemID = \'{ItemID}\'";
+                "UPDATE product SET status = 'Disable', lastModified = @lastModified WHERE itemID = @itemID";
 
-            db.ExecuteNonQueryCommand(sqlStr, null);
+            db.ExecuteNonQueryCommand(sqlStr, new Dictionary<string, object>
+            {
+                { "@lastModified", accountController.GetUid() },
+                { "@itemID", ItemID }
+            });
         }
 
         public void SetToModityItemID(string ItemID)
@@ -133,8 +137,7 @@ namespace LMCIS.controller
                     { "@onSaleQty", ItemInfo.onSaleQty },
                     { "@LM_onSaleQty", ItemInfo.LM_onSaleQty },
                     { "@description", ItemInfo.description },
-                    { "@status", ItemInfo.status },
-                    { "@price", accountController.GetUid() }
+                    { "@status", ItemInfo.status }
                 };
 
                 sqlStr =
@@ -156,9 +159,9 @@ namespace LMCIS.controller
         {
             dt = new DataTable();
 
-            sqlStr = $"SELECT categoryID FROM category WHERE type = \'{Category}\'";
+            sqlStr = "SELECT categoryID FROM category WHERE type = @categoryType";
 
-            dt = db.ExecuteDataTable(sqlStr);
+            dt = db.ExecuteDataTable(sqlStr, new Dictionary<string, object> { { "@categoryType", Category } });
 
             return dt.Rows[0]["categoryID"].ToString();
         }
@@ -218,9 +221,9 @@ namespace LMCIS.controller
         {
             dt = new DataTable();
 
-            sqlStr = $"SELECT * FROM discount WHERE discountID = \'{discountID}\'";
+            sqlStr = "SELECT * FROM discount WHERE discountID = @discountID";
 
-            dt = db.ExecuteDataTable(sqlStr);
+            dt = db.ExecuteDataTable(sqlStr, new Dictionary<string, object> { { "@discountID", discountID } });
 
             dynamic DiscountInfo = new ExpandoObject();
             DiscountInfo.discountID = dt.Rows[0]["discountID"].ToString();

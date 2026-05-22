@@ -17,50 +17,74 @@ namespace LMCIS.controller
         public DataTable GetPartDetail(string partNum)
         {
             string sqlCmd =
-                $"SELECT w.name, w.partNumber, w.categoryID,x.type, y.name,y.country,z.price, z.onSaleQty, z.LM_onSaleQty FROM spare_part w, category x, supplier y, product z WHERE w.partNumber = z.partNumber AND w.categoryID = x.categoryID AND w.supplierID = y.supplierID AND w.partNumber = '{partNum}'";
-            return _db.ExecuteDataTable(sqlCmd);
+                "SELECT w.name, w.partNumber, w.categoryID, x.type, y.name, y.country, z.price, z.onSaleQty, z.LM_onSaleQty " +
+                "FROM spare_part w, category x, supplier y, product z " +
+                "WHERE w.partNumber = z.partNumber AND w.categoryID = x.categoryID AND w.supplierID = y.supplierID AND w.partNumber = @partNum";
+            return _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@partNum", partNum }
+            });
         }
 
         public DataTable GetEditableOrderId(string id) //customer id
         {
             string customerAccountID = GetCustomerAccountId(id);
             string sqlCmd =
-                $"SELECT orderID from order_ WHERE customerAccountID = '{customerAccountID}' AND (status = 'Pending' OR status = 'Processing')";
-            return _db.ExecuteDataTable(sqlCmd);
+                "SELECT orderID FROM order_ WHERE customerAccountID = @customerAccountID AND (status = 'Pending' OR status = 'Processing')";
+            return _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@customerAccountID", customerAccountID }
+            });
         }
 
         public string GetShippingDate(string id) //order id
         {
-            string sqlCmd = $"SELECT shippingDate from shipping_detail WHERE orderID = '{id}'";
-            return _db.ExecuteDataTable(sqlCmd).Rows[0][0].ToString();
+            string sqlCmd = "SELECT shippingDate FROM shipping_detail WHERE orderID = @orderID";
+            return _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@orderID", id }
+            }).Rows[0][0].ToString();
         }
 
         public string GetOrderStatus(string id) //order id
         {
-            string sqlCmd = $"SELECT status from order_ WHERE orderID = '{id}'";
-            return _db.ExecuteDataTable(sqlCmd).Rows[0][0].ToString();
+            string sqlCmd = "SELECT status FROM order_ WHERE orderID = @orderID";
+            return _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@orderID", id }
+            }).Rows[0][0].ToString();
         }
 
         public DataTable GetShippingDetail(string id) //orderID
         {
             //orderID
-            string sqlCmd = $"SELECT * FROM shipping_detail WHERE orderID = '{id}'";
-            return _db.ExecuteDataTable(sqlCmd);
+            string sqlCmd = "SELECT * FROM shipping_detail WHERE orderID = @orderID";
+            return _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@orderID", id }
+            });
         }
 
         public string GetCustomerAccountId(string id) //id = customerID
         {
-            string sqlCmd = $"SELECT customerAccountID FROM customer_account WHERE customerID = '{id}'";
-            return _db.ExecuteDataTable(sqlCmd).Rows[0][0].ToString();
+            string sqlCmd = "SELECT customerAccountID FROM customer_account WHERE customerID = @customerID";
+            return _db.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+            {
+                { "@customerID", id }
+            }).Rows[0][0].ToString();
         }
 
         public int getNumberOfPartAlreadyInOrder(string orderId, string partNum)
         {
             string sqlCmd =
-                $"SELECT quantity FROM order_line WHERE partNumber = \'{partNum}\' AND orderID = \'{orderId}\'";
+                "SELECT quantity FROM order_line WHERE partNumber = @partNum AND orderID = @orderID";
             try
             {
-                return int.Parse(_db.ExecuteDataTable(sqlCmd).Rows[0][0].ToString());
+                return int.Parse(_db.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+                {
+                    { "@partNum", partNum },
+                    { "@orderID", orderId }
+                }).Rows[0][0].ToString());
             }
             catch (Exception)
             {
@@ -77,10 +101,12 @@ namespace LMCIS.controller
                 try
                 {
                     string sqlCmd =
-                        $"UPDATE order_line SET quantity = @qty WHERE partNumber = \'{partNum}\' AND orderID = \'{orderId}\'";
+                        "UPDATE order_line SET quantity = @qty WHERE partNumber = @partNum AND orderID = @orderID";
                     Dictionary<string, object> parameters = new Dictionary<string, object>
                     {
-                        { "@qty", newQty }
+                        { "@qty", newQty },
+                        { "@partNum", partNum },
+                        { "@orderID", orderId }
                     };
                     _db.ExecuteNonQueryCommand(sqlCmd, parameters);
                     if (deductOnSalesQty(partNum, qty, isLM))
@@ -102,13 +128,13 @@ namespace LMCIS.controller
             {
                 try
                 {
-                    string sqlCmd = $"INSERT INTO order_line VALUES (@partNum, @orderID, @qty, @orderUnitPrice)";
+                    string sqlCmd = "INSERT INTO order_line VALUES (@partNum, @orderID, @qty, @orderUnitPrice)";
                     Dictionary<string, object> parameters = new Dictionary<string, object>
                     {
-                        { "partNum", partNum },
-                        { "orderID", orderId },
+                        { "@partNum", partNum },
+                        { "@orderID", orderId },
                         { "@qty", qty },
-                        { "orderUnitPrice", price }
+                        { "@orderUnitPrice", price }
                     };
                     _db.ExecuteNonQueryCommand(sqlCmd, parameters);
                     if (deductOnSalesQty(partNum, qty, isLM))
@@ -133,16 +159,19 @@ namespace LMCIS.controller
             string sqlCmd = "";
             if (!isLM)
             {
-                sqlCmd = $"SELECT onSaleQty FROM product WHERE partNumber = \'{partNum}\'";
+                sqlCmd = "SELECT onSaleQty FROM product WHERE partNumber = @partNum";
             }
             else
             {
-                sqlCmd = $"SELECT LM_onSaleQty FROM product WHERE partNumber = \'{partNum}\'";
+                sqlCmd = "SELECT LM_onSaleQty FROM product WHERE partNumber = @partNum";
             }
 
             try
             {
-                return int.Parse(_db.ExecuteDataTable(sqlCmd).Rows[0][0].ToString());
+                return int.Parse(_db.ExecuteDataTable(sqlCmd, new Dictionary<string, object>
+                {
+                    { "@partNum", partNum }
+                }).Rows[0][0].ToString());
             }
             catch (Exception)
             {
@@ -161,16 +190,17 @@ namespace LMCIS.controller
                 string sqlCmd = "";
                 if (!isLM)
                 {
-                    sqlCmd = $"UPDATE product SET onSaleQty = @qty WHERE partNumber = \'{partNum}\'";
+                    sqlCmd = "UPDATE product SET onSaleQty = @qty WHERE partNumber = @partNum";
                 }
                 else
                 {
-                    sqlCmd = $"UPDATE product SET LM_onSaleQty = @qty WHERE partNumber = \'{partNum}\'";
+                    sqlCmd = "UPDATE product SET LM_onSaleQty = @qty WHERE partNumber = @partNum";
                 }
 
                 Dictionary<string, object> parameters = new Dictionary<string, object>
                 {
-                    { "@qty", newOnSaleQty }
+                    { "@qty", newOnSaleQty },
+                    { "@partNum", partNum }
                 };
                 _db.ExecuteNonQueryCommand(sqlCmd, parameters);
                 return true;
@@ -185,7 +215,7 @@ namespace LMCIS.controller
         public DataTable getSparePartList()
         {
             string sqlCmd =
-                $"SELECT * from spare_part WHERE status = \'Enable\'";
+                "SELECT * FROM spare_part WHERE status = 'Enable'";
             return _db.ExecuteDataTable(sqlCmd);
         }
     }
