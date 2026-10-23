@@ -17,7 +17,7 @@ namespace LMCIS.controller.Utilities
         private static string GetApiKey() => ConfigurationManager.AppSettings["GoogleMapsApiKey"] ??
                                              throw new Exception("No valid Google Maps Api Key found.");
 
-        private static List<string> GetDataBaseConnectionStringsList()
+        internal static List<string> GetDataBaseConnectionStringsList()
         {
             return ConfigurationManager.AppSettings.AllKeys
                 .Where(key => key.StartsWith("ConnectionString"))

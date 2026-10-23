@@ -58,6 +58,8 @@ namespace TestController
         public readonly List<Call> Queries = new List<Call>();
         public readonly List<Call> Commands = new List<Call>();
         public Func<string, Dictionary<string, object>, DataTable> Query { get; set; }
+        private int disposeCount;
+        public int DisposeCount => System.Threading.Volatile.Read(ref disposeCount);
 
         public DataTable ExecuteDataTable(string sqlQuery, Dictionary<string, object> queryParameters)
         {
@@ -81,7 +83,7 @@ namespace TestController
         public MySqlCommand CreateCommand(string query, Dictionary<string, object> parameters) => throw new InvalidOperationException("Unexpected command creation: " + query);
         public void ExecuteNonQuery(MySqlCommand command) => throw new InvalidOperationException("Unexpected command execution.");
         public object ExecuteCommand(string sqlQuery, Dictionary<string, object> queryParameters, Func<MySqlCommand, object> execute) => throw new InvalidOperationException("Unexpected command execution: " + sqlQuery);
-        public void Dispose() { }
+        public void Dispose() { System.Threading.Interlocked.Increment(ref disposeCount); }
         public void ExecuteInTransaction(Action action) => action();
     }
 }

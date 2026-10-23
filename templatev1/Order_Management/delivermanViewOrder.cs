@@ -15,7 +15,7 @@ namespace LMCIS.Order_Management
 {
     public partial class delivermanViewOrder : Form
     {
-        dateHandler dateHandler;
+        readonly dateHandler dateHandler = new dateHandler();
         AccountController accountController;
         UIController UIController;
         viewOrderController controller;
@@ -37,7 +37,6 @@ namespace LMCIS.Order_Management
             this.orderID = orderID;
             this.accountController = accountController;
             this.UIController = UIController;
-            dateHandler = new dateHandler();
             controller = new viewOrderController();
             shipDate = "";
             UID = this.accountController.GetUid();
@@ -94,6 +93,7 @@ namespace LMCIS.Order_Management
             //delivery info
             dt = new DataTable();
             dt = controller.GetShippingDetail(orderID);
+            int daysUntilShipping = dateHandler.DayDifference((DateTime)dt.Rows[0]["shippingDate"]);
             string shippingDate = dt.Rows[0][2].ToString();
             string[]
                 d = shippingDate
@@ -115,8 +115,7 @@ namespace LMCIS.Order_Management
                 lblDelivermanID.Text = dt.Rows[0][1].ToString();
                 lblDelivermanName.Text = $"{delivermanDetail[0]} {delivermanDetail[1]}";
                 lblDelivermanContact.Text = delivermanDetail[2];
-                dateHandler = new dateHandler();
-                lblShippingDate.Text = dateHandler.DayDifference(orderID) >= 0
+                lblShippingDate.Text = daysUntilShipping >= 0
                     ? $"Scheduled on {shippingDate}"
                     : $"Delivered on {shippingDate}";
 
@@ -126,7 +125,7 @@ namespace LMCIS.Order_Management
             lblShippingAddress.Text = dt.Rows[0][5].ToString();
             if (lblStatus.Text == "Pending" || lblStatus.Text == "Processing")
             {
-                lblDayUntil.Text = $"{dateHandler.DayDifference(orderID)} day(s) until shipping";
+                lblDayUntil.Text = $"{daysUntilShipping} day(s) until shipping";
             }
             else
             {

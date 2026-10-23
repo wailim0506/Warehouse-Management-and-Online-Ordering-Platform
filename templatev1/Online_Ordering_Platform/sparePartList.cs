@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Data;
 using System.Drawing;
 using System.Reflection;
 using System.Windows.Forms;
+using Microsoft.Extensions.Logging;
 using LMCIS.controller;
 using LMCIS.On_Sale_Product_Manag;
 using LMCIS.Order_Management;
@@ -23,17 +25,31 @@ namespace LMCIS.Online_Ordering_Platform
         AccountController accountController;
         UIController UIController;
         spareListController controller;
+        private bool isInitializingCatalog;
+        private Font catalogFont;
+        private static readonly object CatalogImageSync = new object();
+        private static readonly Dictionary<string, Image> CatalogImages = new Dictionary<string, Image>(StringComparer.Ordinal);
 
         public sparePartList()
         {
             InitializeComponent();
+            initializeCatalogFontLifetime();
             controller = new spareListController();
+            lblUid.Text = $"Uid: {UID}";
+        }
+
+        public sparePartList(spareListController controller)
+        {
+            InitializeComponent();
+            initializeCatalogFontLifetime();
+            this.controller = controller ?? throw new ArgumentNullException(nameof(controller));
             lblUid.Text = $"Uid: {UID}";
         }
 
         public sparePartList(AccountController accountController, UIController UIController)
         {
             InitializeComponent();
+            initializeCatalogFontLifetime();
             this.accountController = accountController;
             this.UIController = UIController;
             isLM = accountController.GetIsLm();
@@ -46,11 +62,17 @@ namespace LMCIS.Online_Ordering_Platform
         private void sparePartList_Load(object sender, EventArgs e)
         {
             timer1.Enabled = true;
-            DataTable dt = controller.getAllPart();
-            load_part(dt);
-            cmbCategory.SelectedIndex = 0;
-            cmbSorting.SelectedIndex = 0;
-            List<string> partName = controller.getAllPartName();
+            isInitializingCatalog = true;
+            try
+            {
+                cmbCategory.SelectedIndex = 0;
+                cmbSorting.SelectedIndex = 0;
+            }
+            finally
+            {
+                isInitializingCatalog = false;
+            }
+            load_part(controller.getSpareWhenTextChange(cmbCategory.Text, tbKW.Text, cmbSorting.Text));
             palSelect1.Visible =
                 palSelect2.Visible = palSelect3.Visible = palSelect4.Visible = palSelect5.Visible = false;
             hideButton();
@@ -60,7 +82,29 @@ namespace LMCIS.Online_Ordering_Platform
 
         public void load_part(DataTable dt)
         {
-            pnlSP.Controls.Clear();
+            var elapsed = Stopwatch.StartNew();
+            pnlSP.SuspendLayout();
+            try
+            {
+                while (pnlSP.Controls.Count > 0)
+                {
+                    Control oldCard = pnlSP.Controls[0];
+                    pnlSP.Controls.RemoveAt(0);
+                    oldCard.Dispose();
+                }
+                renderPartCards(dt);
+            }
+            finally
+            {
+                pnlSP.ResumeLayout(true);
+            }
+            elapsed.Stop();
+            LMCIS.controller.Utilities.Log.LogMessage(LogLevel.Information, "Performance",
+                $"Catalog rendered {dt.Rows.Count} rows in {elapsed.ElapsedMilliseconds} ms.");
+        }
+
+        private void renderPartCards(DataTable dt)
+        {
             int grpBoxNeeded = countSparePart(dt);
             int columnPerRow = 3;
             int rowNeed = divideRoundUp(grpBoxNeeded, columnPerRow);
@@ -111,65 +155,64 @@ namespace LMCIS.Online_Ordering_Platform
                         Label lblCategoryLabel = new Label
                         {
                             Text = "Category :", AutoSize = true, Location = new Point(6, 207),
-                            Font = new Font("Times New Roman", 12)
+                            Font = getCatalogFont()
                         };
                         Label lblPartNumLabel = new Label
                         {
                             Text = "Part Number :", AutoSize = true, Location = new Point(6, 237),
-                            Font = new Font("Times New Roman", 12)
+                            Font = getCatalogFont()
                         };
                         Label lblNameLabel = new Label
                         {
                             Text = "Name :", AutoSize = true, Location = new Point(6, 267),
-                            Font = new Font("Times New Roman", 12)
+                            Font = getCatalogFont()
                         };
                         Label lblPriceLabel = new Label
                         {
                             Text = "Price :¥", AutoSize = true, Location = new Point(6, 297),
-                            Font = new Font("Times New Roman", 12)
+                            Font = getCatalogFont()
                         };
 
                         Label lblCategory = new Label
                         {
-                            Text =
-                                $"{dt.Rows[currentGrpBox][2]} - {controller.getCategoryName(dt.Rows[currentGrpBox][2].ToString())}",
-                            AutoSize = false, Font = new Font("Times New Roman", 12),
+                            Text = $"{dt.Rows[currentGrpBox][2]} - {dt.Rows[currentGrpBox]["categoryName"]}",
+                            AutoSize = false, Font = getCatalogFont(),
                             Location = new Point(83, 208), Size = new Size(174, 20)
                         };
                         Label lblPartNum = new Label
                         {
                             Name = $"lblPartNum{currentGrpBox}", Text = $"{dt.Rows[currentGrpBox][0]}",
-                            AutoSize = false, Font = new Font("Times New Roman", 12),
+                            AutoSize = false, Font = getCatalogFont(),
                             Location = new Point(108, 238), Size = new Size(171, 20)
                         };
                         Label lblName = new Label
                         {
                             Text = $"{dt.Rows[currentGrpBox][3]}", AutoSize = false,
-                            Font = new Font("Times New Roman", 12), Location = new Point(62, 268),
+                            Font = getCatalogFont(), Location = new Point(62, 268),
                             Size = new Size(218, 20)
                         };
                         Label lblPrice = new Label
                         {
-                            Text = $"{controller.getPrice(dt.Rows[currentGrpBox][0].ToString())}", AutoSize = false,
-                            Font = new Font("Times New Roman", 12), Location = new Point(64, 297),
+                            Text = $"{dt.Rows[currentGrpBox]["price"]}", AutoSize = false,
+                            Font = getCatalogFont(), Location = new Point(64, 297),
                             Size = new Size(213, 20)
                         };
                         Button btnView = new Button
                         {
-                            Name = $"btnView{currentGrpBox}", Text = "View", Font = new Font("Times New Roman", 12),
+                            Name = $"btnView{currentGrpBox}", Text = "View", Font = getCatalogFont(),
                             Cursor = Cursors.Hand, Location = new Point(3, 319),
                             Size = new Size(272, 30)
                         };
                         Button btnAddCart = new Button
                         {
                             Name = $"btnAddCart{currentGrpBox}", Text = "Add Cart",
-                            Font = new Font("Times New Roman", 12), Cursor = Cursors.Hand,
+                            Font = getCatalogFont(), Cursor = Cursors.Hand,
                             Location = new Point(3, 350), Size = new Size(205, 30)
                         };
                         TextBox tbQty = new TextBox
                         {
                             Text = "1", Name = $"tbQty{currentGrpBox}", BorderStyle = BorderStyle.FixedSingle,
-                            Font = new Font("Times New Roman", 12), Location = new Point(214, 352),
+                            Font = getCatalogFont(), Location = new Point(214, 352),
                             MaxLength = 4, Size = new Size(61, 26),
                             TextAlign = HorizontalAlignment.Center
                         };
@@ -205,6 +248,22 @@ namespace LMCIS.Online_Ordering_Platform
             AutoCompleteStringCollection autoCompleteCollection = new AutoCompleteStringCollection();
             autoCompleteCollection.AddRange(partName.ToArray());
             tbKW.AutoCompleteCustomSource = autoCompleteCollection;
+        }
+
+        private void initializeCatalogFontLifetime()
+        {
+            Disposed += (sender, args) =>
+            {
+                catalogFont?.Dispose();
+                catalogFont = null;
+            };
+        }
+
+        private Font getCatalogFont()
+        {
+            if (catalogFont == null)
+                catalogFont = new Font("Times New Roman", 12);
+            return catalogFont;
         }
 
         public int countSparePart(DataTable dt)
@@ -345,18 +404,21 @@ namespace LMCIS.Online_Ordering_Platform
 
         private void tbKW_TextChanged(object sender, EventArgs e)
         {
+            if (isInitializingCatalog) return;
             load_part(controller.getSpareWhenTextChange(cmbCategory.Text, tbKW.Text,
                 cmbSorting.Text));
         }
 
         private void cmbSorting_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (isInitializingCatalog) return;
             load_part(controller.getSpareWhenTextChange(cmbCategory.Text, tbKW.Text,
                 cmbSorting.Text));
         }
 
         private void cmbCategory_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (isInitializingCatalog) return;
             load_part(controller.getSpareWhenTextChange(cmbCategory.Text, tbKW.Text,
                 cmbSorting.Text));
         }
@@ -374,9 +436,18 @@ namespace LMCIS.Online_Ordering_Platform
 
         private Image imageString(string imageName)
         {
-            PropertyInfo property =
-                typeof(Resources).GetProperty(imageName, BindingFlags.NonPublic | BindingFlags.Static);
-            return property?.GetValue(null, null) as Image;
+            lock (CatalogImageSync)
+            {
+                if (CatalogImages.TryGetValue(imageName, out var cachedImage))
+                    return cachedImage;
+
+                PropertyInfo property =
+                    typeof(Resources).GetProperty(imageName, BindingFlags.NonPublic | BindingFlags.Static);
+                var image = property?.GetValue(null, null) as Image;
+                if (image != null)
+                    CatalogImages.Add(imageName, image);
+                return image;
+            }
         }
 
         private void BWMode()

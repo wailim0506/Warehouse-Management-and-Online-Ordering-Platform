@@ -6,6 +6,7 @@ using System.Net.Mail;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using LMCIS.controller;
+using LMCIS.Utilities;
 using LMCIS.controller.Utilities;
 using Microsoft.Extensions.Logging;
 
@@ -21,11 +22,13 @@ namespace LMCIS.System_page
         public CreateCustomerAcc()
         {
             InitializeComponent();
+            OwnedImage.TrackDisposal(picUserIMG, () => IMG);
         }
 
         public CreateCustomerAcc(RecoveryController recoveryController)
         {
             InitializeComponent();
+            OwnedImage.TrackDisposal(picUserIMG, () => IMG);
             this.recoveryController = recoveryController;
             value = new ExpandoObject();
         }
@@ -97,29 +100,30 @@ namespace LMCIS.System_page
         //For image upload and remove function
         private void btnRemoveIMG_Click(object sender, EventArgs e)
         {
-            IMG = null;
+            OwnedImage.Replace(picUserIMG, ref IMG, null);
             btnUploadIMG.Visible = true;
-            picUserIMG.Image = IMG;
         }
 
         private void btnUploadIMG_Click(object sender, EventArgs e)
         {
             try
             {
-                OpenFileDialog ofd = new OpenFileDialog();
-                ofd.Filter = "Image Files(*.jpg; *.jpeg; *.gif; *.bmp); *.PNG|*.jpg; *.jpeg; *.gif; *.bmp; *.PNG";
-                if (ofd.ShowDialog() == DialogResult.OK)
+                using (OpenFileDialog ofd = new OpenFileDialog())
                 {
-                    if (new FileInfo(ofd.FileName).Length > 1000000) //File can't larger than 1MB
+                    ofd.Filter = "Image Files(*.jpg; *.jpeg; *.gif; *.bmp); *.PNG|*.jpg; *.jpeg; *.gif; *.bmp; *.PNG";
+                    if (ofd.ShowDialog() == DialogResult.OK)
                     {
-                        MessageBox.Show("File too large! Maximum 1MB.");
-                        IMGUploaded = false;
-                        Log.LogMessage(LogLevel.Warning, "[View] Create Customer Account", $"Guest user uploaded an image larger than 1MB.");
-                    }
-                    else
-                    {
-                        UploadImage(ofd);
-                        Log.LogMessage(LogLevel.Information, "[View] Create Customer Account", $"Guest user uploaded an image.");
+                        if (new FileInfo(ofd.FileName).Length > 1000000) //File can't larger than 1MB
+                        {
+                            MessageBox.Show("File too large! Maximum 1MB.");
+                            IMGUploaded = false;
+                            Log.LogMessage(LogLevel.Warning, "[View] Create Customer Account", $"Guest user uploaded an image larger than 1MB.");
+                        }
+                        else
+                        {
+                            UploadImage(ofd);
+                            Log.LogMessage(LogLevel.Information, "[View] Create Customer Account", $"Guest user uploaded an image.");
+                        }
                     }
                 }
             }
@@ -144,9 +148,8 @@ namespace LMCIS.System_page
 
         private void UploadImage(OpenFileDialog ofd)
         {
-            IMG = new Bitmap(Image.FromFile(ofd.FileName));
+            OwnedImage.Replace(picUserIMG, ref IMG, OwnedImage.LoadDetached(ofd.FileName));
             btnUploadIMG.Visible = false;
-            picUserIMG.Image = IMG;
             IMGUploaded = true;
 
             string path = Directory.GetCurrentDirectory() + "\\Upload\\";

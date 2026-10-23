@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using Microsoft.Extensions.Logging;
 using MySql.Data.MySqlClient;
 
@@ -13,10 +14,13 @@ namespace LMCIS.controller.Utilities
 
         public Database(string connectionString = null)
         {
-            _connection = new MySqlConnection(connectionString ?? GetConnectionString());
+            _connection = connectionString == null
+                ? (MySqlConnection)OpenFirstAvailableConnection(Configuration.GetDataBaseConnectionStringsList(),
+                    candidate => new MySqlConnection(candidate))
+                : new MySqlConnection(connectionString);
             try
             {
-                _connection.Open();
+                if (connectionString != null) _connection.Open();
                 new Log();
             }
             catch
@@ -26,33 +30,34 @@ namespace LMCIS.controller.Utilities
             }
         }
 
-        private string GetConnectionString()
+        internal static DbConnection OpenFirstAvailableConnection(IEnumerable<string> connectionStrings,
+            Func<string, DbConnection> createConnection)
         {
-            var connectionStrings = new List<string>();
-            connectionStrings.Add(Configuration.DataBaseConnectionString);
+            if (connectionStrings == null) throw new ArgumentNullException(nameof(connectionStrings));
+            if (createConnection == null) throw new ArgumentNullException(nameof(createConnection));
 
-            return TestConnection(connectionStrings) ?? throw new Exception("No valid connection string found.");
-        }
-
-        private string TestConnection(List<string> connectionStrings)
-        {
             foreach (var connectionString in connectionStrings)
             {
-                using (var connection = new MySqlConnection(connectionString))
+                DbConnection connection = null;
+                try
+                {
+                    connection = createConnection(connectionString);
+                    connection.Open();
+                    return connection;
+                }
+                catch (Exception)
                 {
                     try
                     {
-                        connection.Open();
-                        return connectionString;
+                        connection?.Dispose();
                     }
-                    catch
+                    catch (Exception)
                     {
-                        // Ignore the exception and try the next connection string
+                        // A failed candidate must not prevent trying the remaining endpoints.
                     }
                 }
             }
 
-            // If none of the connection strings work, throw an exception or return null
             throw new Exception("No valid connection string found.");
         }
 

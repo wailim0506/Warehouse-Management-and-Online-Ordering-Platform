@@ -11,11 +11,11 @@ From PowerShell at the repository root:
 
 The script restores packages, builds the solution, executes xUnit, and checks the generated TRX report. Test failures, failed stages, and zero discovered tests produce an error. Reports are saved in dated directories under `TestResults` by default.
 
-Ordinary controller and form tests use recording adapters and do not connect to MySQL. The form test constructs and disposes the login form on an STA thread without loading live services. Logging tests use isolated application domains and temporary directories.
+Ordinary controller and form tests use recording adapters and do not connect to MySQL. WinForms tests run on STA threads with bounded waits and cover offline login loading, background authentication, retry/disposal, catalog rendering, and image ownership. Logging tests use isolated application domains and temporary directories. See [performance.md](performance.md) for the data-driven scenarios and aggregate timing workflow.
 
 ## Database integration tests
 
-Database integration tests are skipped unless `WAREHOUSE_TEST_CONNECTION_STRING` is set. They cover adapter commit/rollback and command paths, nested-transaction rejection, simultaneous shipping requests, simultaneous order additions, replayed restocks, and rollback after injected shipping/restock failures.
+Database integration tests are skipped unless `WAREHOUSE_TEST_CONNECTION_STRING` is set. They cover adapter commit/rollback and command paths, nested-transaction rejection, simultaneous shipping requests, simultaneous order additions, replayed restocks, rollback after injected shipping/restock failures, and the joined catalog query.
 
 Start a disposable MySQL/MariaDB development instance. For the existing Compose setup, run this from a WSL shell at the repository root, keeping the WSL session open while the Windows tests run:
 
@@ -34,12 +34,14 @@ try {
 }
 ```
 
-The supplied account needs privileges to create/drop databases and create triggers. Each test creates an InnoDB schema named `warehouse_test_<guid>`, then removes it. The database named in the connection string is never selected or modified. The test fixture imposes short connection/command timeouts and disables pooling so its connections close before schema cleanup.
+The supplied account needs privileges to create/drop databases and create triggers. Each test creates an isolated schema named `warehouse_test_<guid>` or `catalog_test_<guid>`, then removes it. The database named in the connection string is never selected or modified. The test fixtures impose short connection/command timeouts and disable pooling so their connections close before schema cleanup.
 
 The inventory fixture includes the columns and keys used by the tested operations; it does not replace validation of the complete seed, schema relationships, or interactive application workflows.
 
 ## Verified results
 
-On 2026-10-23, the native script restored and built both Debug and Release, then passed all 50 tests in each configuration with no skipped tests. Eight tests in each run exercised a live MariaDB 10.5.29 instance using Docker in WSL. Those eight integration tests also passed against a separate MariaDB 11.4.5 instance.
+On 2026-10-23, the performance refinement restored and built both Debug and Release, then passed all 81 tests in each configuration with no skipped tests. Nine tests in each run exercised live MariaDB using Docker in WSL, including the new catalog join. The performance-summary script was also checked with single/zero-valued measurements, multiple row-count groups, percentile examples, and an empty input; its normal path ran under Windows PowerShell 5.1 as well as PowerShell 7.
 
-The existing Compose seed imported successfully with 33 tables, and phpMyAdmin responded with HTTP 200. The wiki built successfully with 20 pages. Interactive desktop workflows were not exercised, and the existing compiler warnings remain. VM workflow changes are outside this refinement's scope.
+The Release executable was launched and its login window, enabled login action, user-ID label, and UI responsiveness were verified through Windows UI Automation. Full interactive desktop workflows were not exercised, and existing compiler warnings remain. VM workflow changes are outside this refinement's scope.
+
+The preceding SQL-hardening baseline passed all 50 tests in both configurations, including eight integration tests on MariaDB 10.5.29 and separately MariaDB 11.4.5. That baseline also verified the Compose seed with 33 tables, phpMyAdmin HTTP 200, and a 20-page wiki build; those checks were not repeated by this performance-only refinement.

@@ -521,6 +521,7 @@
       <DependentUpon>ProFileMain.cs</DependentUpon>
     </Compile>
     <Compile Include="Program.cs" />
+    <Compile Include="Utilities\OwnedImage.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Online_Ordering_Platform\AddPartToExistingOrder.resx">
       <DependentUpon>AddPartToExistingOrder.cs</DependentUpon>

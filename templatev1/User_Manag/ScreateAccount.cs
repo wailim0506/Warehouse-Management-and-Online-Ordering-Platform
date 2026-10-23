@@ -12,6 +12,7 @@ using LMCIS.Order_Management;
 using LMCIS.Profile;
 using LMCIS.Stock_Manag;
 using LMCIS.System_page;
+using LMCIS.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace LMCIS.User_Manag
@@ -31,6 +32,7 @@ namespace LMCIS.User_Manag
             UserController userController)
         {
             InitializeComponent();
+            OwnedImage.TrackDisposal(picUserIMG, () => IMG);
             palSelect1.Visible =
                 palSelect2.Visible = palSelect3.Visible = palSelect4.Visible = palSelect5.Visible = false;
             this.accountController = accountController;
@@ -484,25 +486,26 @@ namespace LMCIS.User_Manag
         {
             try
             {
-                OpenFileDialog ofd = new OpenFileDialog();
-                ofd.Filter = "Image Files(*.jpg; *.jpeg; *.gif; *.bmp); *.PNG|*.jpg; *.jpeg; *.gif; *.bmp; *.PNG";
-                if (ofd.ShowDialog() == DialogResult.OK)
+                using (OpenFileDialog ofd = new OpenFileDialog())
                 {
-                    if (new FileInfo(ofd.FileName).Length > 1000000) //File can't larger than 1MB
+                    ofd.Filter = "Image Files(*.jpg; *.jpeg; *.gif; *.bmp); *.PNG|*.jpg; *.jpeg; *.gif; *.bmp; *.PNG";
+                    if (ofd.ShowDialog() == DialogResult.OK)
                     {
-                        MessageBox.Show("File too large! Maximum 1MB.", "System message", MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        //MessageBox.Show("File too large! Maximum 1MB.");
-                        IMGUploaded = false;
-                        Log.LogMessage(LogLevel.Warning, "[View] User Modify", $"User: {UID} uploaded an image larger than 1MB.");
-                    }
-                    else
-                    {
-                        IMG = new Bitmap(Image.FromFile(ofd.FileName));
-                        btnUploadIMG.Visible = false;
-                        btnRemoveIMG.Visible = true;
-                        picUserIMG.Image = IMG;
-                        Log.LogMessage(LogLevel.Information, "[View] User Modify", $"User: {UID} uploaded an image.");
+                        if (new FileInfo(ofd.FileName).Length > 1000000) //File can't larger than 1MB
+                        {
+                            MessageBox.Show("File too large! Maximum 1MB.", "System message", MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+                            //MessageBox.Show("File too large! Maximum 1MB.");
+                            IMGUploaded = false;
+                            Log.LogMessage(LogLevel.Warning, "[View] User Modify", $"User: {UID} uploaded an image larger than 1MB.");
+                        }
+                        else
+                        {
+                            OwnedImage.Replace(picUserIMG, ref IMG, OwnedImage.LoadDetached(ofd.FileName));
+                            btnUploadIMG.Visible = false;
+                            btnRemoveIMG.Visible = true;
+                            Log.LogMessage(LogLevel.Information, "[View] User Modify", $"User: {UID} uploaded an image.");
+                        }
                     }
                 }
             }
@@ -517,10 +520,9 @@ namespace LMCIS.User_Manag
 
         private void btnRemoveIMG_Click(object sender, EventArgs e)
         {
-            IMG = null;
+            OwnedImage.Replace(picUserIMG, ref IMG, null);
             btnUploadIMG.Visible = true;
             btnRemoveIMG.Visible = false;
-            picUserIMG.Image = IMG;
             Log.LogMessage(LogLevel.Information, "[View] User Modify", $"User: {UID} removed the image.");
         }
 

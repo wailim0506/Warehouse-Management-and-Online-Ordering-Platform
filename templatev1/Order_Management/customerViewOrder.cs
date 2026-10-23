@@ -19,7 +19,7 @@ namespace LMCIS.Order_Management
 {
     public partial class customerViewOrder : Form
     {
-        dateHandler _dateHandler;
+        readonly dateHandler _dateHandler = new dateHandler();
         AccountController _accountController;
         UIController _uiController;
         viewOrderController _controller;
@@ -42,7 +42,6 @@ namespace LMCIS.Order_Management
             this._orderId = orderId;
             this._accountController = accountController;
             this._uiController = uiController;
-            _dateHandler = new dateHandler();
             _controller = new viewOrderController();
             _shipDate = "";
             _uid = this._accountController.GetUid();
@@ -134,6 +133,7 @@ namespace LMCIS.Order_Management
             //delivery info
             dt = new DataTable();
             dt = _controller.GetShippingDetail(_orderId);
+            int daysUntilShipping = _dateHandler.DayDifference((DateTime)dt.Rows[0]["shippingDate"]);
             string shippingDate = dt.Rows[0][2].ToString();
             string[]
                 d = shippingDate
@@ -154,7 +154,7 @@ namespace LMCIS.Order_Management
                 lblDelivermanID.Text = dt.Rows[0][1].ToString();
                 lblDelivermanName.Text = $"{delivermanDetail[0]} {delivermanDetail[1]}";
                 lblDelivermanContact.Text = delivermanDetail[2];
-                lblShippingDate.Text = _dateHandler.DayDifference(_orderId) >= 0
+                lblShippingDate.Text = daysUntilShipping >= 0
                     ? $"Scheduled on {shippingDate}"
                     : $"Delivered on {shippingDate}";
 
@@ -163,7 +163,7 @@ namespace LMCIS.Order_Management
             lblShippingAddress.Text = dt.Rows[0][5].ToString();
             if (lblStatus.Text == "Pending" || lblStatus.Text == "Processing" || lblStatus.Text == "Ready to Ship")
             {
-                lblDayUntil.Text = $"{_dateHandler.DayDifference(_orderId)} day(s) until shipping";
+                lblDayUntil.Text = $"{daysUntilShipping} day(s) until shipping";
             }
             else
             {

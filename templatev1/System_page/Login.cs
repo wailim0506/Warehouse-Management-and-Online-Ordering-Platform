@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Drawing;
+using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using LMCIS.controller;
 using LMCIS.controller.Utilities;
@@ -17,18 +20,40 @@ namespace LMCIS.System_page
         AccountController accountController;
         UIController UIController;
         RecoveryController recoveryController;
+        private readonly Func<IDatabase> createDatabase;
+        private IDatabase sessionDatabase;
+        private Task<bool> loginTask;
+        private bool loginPending;
+        private bool closed;
 
-        public Login()
+        public Login() : this(null, null, () => new Database())
         {
+        }
+
+        public Login(AccountController accountController, UIController uiController)
+            : this(accountController, uiController, () => new Database())
+        {
+        }
+
+        internal Login(Func<IDatabase> createDatabase) : this(null, null, createDatabase)
+        {
+        }
+
+        private Login(AccountController accountController, UIController uiController, Func<IDatabase> createDatabase)
+        {
+            if ((accountController == null) != (uiController == null))
+                throw new ArgumentException("Both authentication controllers must be supplied together.");
+            this.createDatabase = createDatabase ?? throw new ArgumentNullException(nameof(createDatabase));
             InitializeComponent();
+            this.accountController = accountController;
+            UIController = uiController;
+            Disposed += (sender, args) => ReleaseDatabaseAfterLogin();
         }
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            accountController = new AccountController();
-            UIController = new UIController(accountController);
-
             IsLogin = false;
+            timer1.Interval = 1000;
             timer1.Enabled = true;
             tbPassword.PasswordChar = '*';
             rememberMe();
@@ -39,8 +64,10 @@ namespace LMCIS.System_page
         }
 
         //Login the system.
-        private void btnLogin_Click(object sender, EventArgs e)
+        private async void btnLogin_Click(object sender, EventArgs e)
         {
+            if (loginPending || closed || IsDisposed || Disposing) return;
+
             //Clean the error message in the label.
             lblUsernameMsg.Text = "";
             lblPasswordMsg.Text = "";
@@ -48,43 +75,115 @@ namespace LMCIS.System_page
             if (string.IsNullOrEmpty(tbUsername.Text)) //username and password have not been entered.
             {
                 lblUsernameMsg.Text = "Please enter your UserID.";
-                Log.LogMessage(LogLevel.Warning, "[View] Login", $"Guest user entered an invalid username : {tbUsername.Text}.");
                 tbUsername.Select();
+                return;
             }
             else if (string.IsNullOrEmpty(tbPassword.Text))
             {
                 lblPasswordMsg.Text = "Please enter your password.";
-                Log.LogMessage(LogLevel.Warning, "[View] Login", $"Guest user entered an invalid password : {tbPassword.Text}.");
                 tbPassword.Select();
+                return;
             }
-            else if (string.IsNullOrEmpty(tbPassword.Text)) //password have not been entered.
+
+            // Capture UI values before the worker starts. Only this attempt uses the
+            // controllers' shared connection until authentication finishes.
+            string username = tbUsername.Text;
+            string password = tbPassword.Text;
+            loginPending = true;
+            SetLoginControlsEnabled(false);
+            try
             {
-                lblPasswordMsg.Text = "Please enter your password.";
-                Log.LogMessage(LogLevel.Warning, "[View] Login", $"Guest user entered an invalid password : {tbPassword.Text}.");
-                tbPassword.Select();
-            }
-            else if (accountController.Login(tbUsername.Text, tbPassword.Text, UIController)) //Checking the password
-            {
+                loginTask = Task.Run(() => Authenticate(username, password));
+                bool authenticated = await loginTask;
+                if (closed || IsDisposed || Disposing) return;
+
+                if (!authenticated)
+                {
+                    tbPassword.Clear();
+                    lblPasswordMsg.Text = "Invalid username or password.";
+                    tbUsername.Select();
+                    return;
+                }
+
                 IsLogin = true;
                 rememberMe();
-                accountController.SetLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-                //Back to login page
-                Log.LogMessage(LogLevel.Information, "[View] Login", $"Guest user is logging in.");
-                Form Home = new Home(accountController, UIController);
-                Hide();
-                //Swap the current form to another.
-                Home.StartPosition = FormStartPosition.Manual;
-                Home.Location = Location;
-                Home.Size = Size;
-                Home.ShowDialog();
+                Log.LogMessage(LogLevel.Information, "[View] Login", "Guest user is logging in.");
+                using (var home = new Home(accountController, UIController))
+                {
+                    Hide();
+                    home.StartPosition = FormStartPosition.Manual;
+                    home.Location = Location;
+                    home.Size = Size;
+                    home.ShowDialog();
+                }
                 Close();
             }
-            else //Password dose not match.
+            catch (Exception error)
             {
-                tbPassword.Clear();
-                lblPasswordMsg.Text = "Invalid username or password.";
-                tbUsername.Select();
-                Log.LogMessage(LogLevel.Warning, "[View] Login", $"Guest user entered an invalid username or password.");
+                Log.LogException(error, "[View] Login");
+                if (!closed && !IsDisposed && !Disposing)
+                {
+                    lblPasswordMsg.Text = "Unable to sign in. Please try again.";
+                    Show();
+                }
+            }
+            finally
+            {
+                loginPending = false;
+                if (!closed && !IsDisposed && !Disposing) SetLoginControlsEnabled(true);
+            }
+        }
+
+        private bool Authenticate(string username, string password)
+        {
+            var elapsed = Stopwatch.StartNew();
+            try
+            {
+                if (accountController == null)
+                {
+                    sessionDatabase = createDatabase();
+                    accountController = new AccountController(sessionDatabase);
+                    UIController = new UIController(accountController, sessionDatabase);
+                }
+                bool authenticated = accountController.Login(username, password, UIController);
+                if (authenticated)
+                    accountController.SetLog(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                return authenticated;
+            }
+            finally
+            {
+                Log.LogMessage(LogLevel.Information, "Performance", $"Authentication completed in {elapsed.ElapsedMilliseconds} ms.");
+            }
+        }
+
+        private void SetLoginControlsEnabled(bool enabled)
+        {
+            tbUsername.Enabled = tbPassword.Enabled = chkRememberMe.Enabled = enabled;
+            btnLogin.Enabled = btnForgetPassword.Enabled = btnCreateCustomerAcc.Enabled = enabled;
+            grpDevTools.Enabled = enabled;
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            closed = true;
+            base.OnFormClosed(e);
+        }
+
+        private void ReleaseDatabaseAfterLogin()
+        {
+            var pending = loginTask;
+            if (pending != null && !pending.IsCompleted)
+            {
+                pending.ContinueWith(completed =>
+                {
+                    // A disposed window may no longer receive its await continuation.
+                    if (completed.IsFaulted) Log.LogException(completed.Exception, "[View] Login");
+                    Interlocked.Exchange(ref sessionDatabase, null)?.Dispose();
+                }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            }
+            else
+            {
+                Interlocked.Exchange(ref sessionDatabase, null)?.Dispose();
             }
         }
 
@@ -193,6 +292,8 @@ namespace LMCIS.System_page
         {
             if (e.KeyCode == Keys.Enter)
             {
+                e.Handled = true;
+                e.SuppressKeyPress = true;
                 btnLogin_Click(this, new EventArgs());
             }
         }

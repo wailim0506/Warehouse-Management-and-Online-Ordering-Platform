@@ -9,6 +9,7 @@ using LMCIS.Order_Management;
 using LMCIS.Profile;
 using LMCIS.Stock_Manag;
 using LMCIS.System_page;
+using LMCIS.Utilities;
 using LMCIS.User_Manag;
 
 namespace LMCIS.On_Sale_Product_Manag
@@ -29,6 +30,7 @@ namespace LMCIS.On_Sale_Product_Manag
             OnSaleProductController onSaleProductController)
         {
             InitializeComponent();
+            OwnedImage.TrackDisposal(picProductIMG, () => IMG);
             palSelect1.Visible =
                 palSelect2.Visible = palSelect3.Visible = palSelect4.Visible = palSelect5.Visible = false;
             this.accountController = accountController;
@@ -297,23 +299,24 @@ namespace LMCIS.On_Sale_Product_Manag
         {
             try
             {
-                OpenFileDialog ofd = new OpenFileDialog();
-                ofd.Filter = "Image Files(*.jpg; *.jpeg; *.gif; *.bmp); *.PNG|*.jpg; *.jpeg; *.gif; *.bmp; *.PNG";
-                if (ofd.ShowDialog() == DialogResult.OK)
+                using (OpenFileDialog ofd = new OpenFileDialog())
                 {
-                    if (new FileInfo(ofd.FileName).Length > 1000000) //File can't larger than 1MB
+                    ofd.Filter = "Image Files(*.jpg; *.jpeg; *.gif; *.bmp); *.PNG|*.jpg; *.jpeg; *.gif; *.bmp; *.PNG";
+                    if (ofd.ShowDialog() == DialogResult.OK)
                     {
-                        MessageBox.Show("File too large! Maximum 1MB.", "System message", MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        //MessageBox.Show("File too large! Maximum 1MB.");
-                        IMGUploaded = false;
-                    }
-                    else
-                    {
-                        IMG = new Bitmap(Image.FromFile(ofd.FileName));
-                        btnUploadIMG.Visible = false;
-                        btnRemoveIMG.Visible = true;
-                        picProductIMG.Image = IMG;
+                        if (new FileInfo(ofd.FileName).Length > 1000000) //File can't larger than 1MB
+                        {
+                            MessageBox.Show("File too large! Maximum 1MB.", "System message", MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+                            //MessageBox.Show("File too large! Maximum 1MB.");
+                            IMGUploaded = false;
+                        }
+                        else
+                        {
+                            OwnedImage.Replace(picProductIMG, ref IMG, OwnedImage.LoadDetached(ofd.FileName));
+                            btnUploadIMG.Visible = false;
+                            btnRemoveIMG.Visible = true;
+                        }
                     }
                 }
             }
@@ -327,10 +330,9 @@ namespace LMCIS.On_Sale_Product_Manag
 
         private void btnRemoveIMG_Click(object sender, EventArgs e)
         {
-            IMG = null;
+            OwnedImage.Replace(picProductIMG, ref IMG, null);
             btnUploadIMG.Visible = true;
             btnRemoveIMG.Visible = false;
-            picProductIMG.Image = IMG;
         }
 
 

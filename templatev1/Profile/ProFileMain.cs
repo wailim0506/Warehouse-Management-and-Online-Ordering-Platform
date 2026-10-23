@@ -12,6 +12,7 @@ using LMCIS.Order_Management;
 using LMCIS.Properties;
 using LMCIS.Stock_Manag;
 using LMCIS.System_page;
+using LMCIS.Utilities;
 using LMCIS.User_Manag;
 using Microsoft.Extensions.Logging;
 
@@ -32,12 +33,14 @@ namespace LMCIS.Profile
         public proFileMain()
         {
             InitializeComponent();
+            OwnedImage.TrackDisposal(picUserIMG, () => IMG);
         }
 
         public proFileMain(AccountController accountController, UIController UIController,
             proFileController proFileController)
         {
             InitializeComponent();
+            OwnedImage.TrackDisposal(picUserIMG, () => IMG);
 
             this.accountController = accountController;
             this.UIController = UIController;
@@ -110,7 +113,7 @@ namespace LMCIS.Profile
                 string avatarPath = proFileController.GetUserAvatar(UID);
                 if (avatarPath != null)
                 {
-                    picUserIMG.Image = new Bitmap(avatarPath);
+                    OwnedImage.Replace(picUserIMG, ref IMG, OwnedImage.LoadDetached(avatarPath));
                     IMGUploaded = true;
                 }
                 else
@@ -488,24 +491,26 @@ namespace LMCIS.Profile
         {
             try
             {
-                OpenFileDialog ofd = new OpenFileDialog();
-                ofd.Filter = "Image Files(*.jpg; *.jpeg; *.gif; *.bmp); *.PNG|*.jpg; *.jpeg; *.gif; *.bmp; *.PNG";
-                if (ofd.ShowDialog() == DialogResult.OK)
+                using (OpenFileDialog ofd = new OpenFileDialog())
                 {
-                    if (new FileInfo(ofd.FileName).Length > 1000000) //File can't larger than 1MB
+                    ofd.Filter = "Image Files(*.jpg; *.jpeg; *.gif; *.bmp); *.PNG|*.jpg; *.jpeg; *.gif; *.bmp; *.PNG";
+                    if (ofd.ShowDialog() == DialogResult.OK)
                     {
-                        MessageBox.Show("File too large! Maximum 1MB.", "System message", MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        //MessageBox.Show("File too large! Maximum 1MB.");
-                        IMGUploaded = false;
-                    }
-                    else
-                    {
-                        IMG = new Bitmap(Image.FromFile(ofd.FileName));
-                        btnUploadIMG.Visible = false;
-                        btnRemoveIMG.Visible = true;
-                        picUserIMG.Image = IMG;
-                        IMGUploaded = proFileController.UploadUserAvatar(ofd.FileName, UID);
+                        if (new FileInfo(ofd.FileName).Length > 1000000) //File can't larger than 1MB
+                        {
+                            MessageBox.Show("File too large! Maximum 1MB.", "System message", MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+                            //MessageBox.Show("File too large! Maximum 1MB.");
+                            IMGUploaded = false;
+                        }
+                        else
+                        {
+                            OwnedImage.Replace(picUserIMG, ref IMG, OwnedImage.LoadDetached(ofd.FileName));
+                            btnUploadIMG.Visible = false;
+                            btnRemoveIMG.Visible = true;
+                            picUserIMG.Image = IMG;
+                            IMGUploaded = proFileController.UploadUserAvatar(ofd.FileName, UID);
+                        }
                     }
                 }
             }
@@ -519,10 +524,9 @@ namespace LMCIS.Profile
 
         private void btnRemoveIMG_Click(object sender, EventArgs e)
         {
-            IMG = null;
+            OwnedImage.Replace(picUserIMG, ref IMG, null);
             btnUploadIMG.Visible = true;
             btnRemoveIMG.Visible = false;
-            picUserIMG.Image = IMG;
             proFileController.DeleteUserAvatar(UID);
         }
 
