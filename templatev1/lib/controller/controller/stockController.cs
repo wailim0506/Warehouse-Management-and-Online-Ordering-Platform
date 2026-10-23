@@ -11,16 +11,14 @@ namespace LMCIS.controller
     public class stockController : abstractController
     {
         AccountController accountController;
-        private readonly Database db;
+        private readonly IDatabase db;
         private string sqlStr, ToModifySpareID, ToModifySupplierID;
         private DataTable dt;
-        private Database _db;
-
-        public stockController(AccountController accountController, Database db = null)
+        public stockController(AccountController accountController, IDatabase db = null)
         {
             _db = db ?? new Database();
             this.accountController = accountController;
-            this.db = db ?? new Database();
+            this.db = _db;
         }
 
         //Return all records to the data grid view from database.
@@ -188,6 +186,8 @@ namespace LMCIS.controller
 
         public void CreateReorderRequest(string PartID, int reorderQty)
         {
+            if (reorderQty <= 0) throw new ArgumentOutOfRangeException(nameof(reorderQty), "Reorder quantity must be greater than zero.");
+
             var reorderParams = new Dictionary<string, object>
             {
                 { "@ReorderID", GetReorderID() },
@@ -210,10 +210,31 @@ namespace LMCIS.controller
 
         public void AcceptReorderANDRestock(string PartID, string reorderQty, string reorderID)
         {
-            _db.ExecuteNonQueryCommand("UPDATE spare_part SET quantity = quantity + @reorderQty WHERE partNumber = @partNumber",
-                new Dictionary<string, object> { { "@reorderQty", reorderQty }, { "@partNumber", PartID } });
-            _db.ExecuteNonQueryCommand("UPDATE reorder_request SET status = 'finished' WHERE reorderID = @reorderID",
-                new Dictionary<string, object> { { "@reorderID", reorderID } });
+            _db.ExecuteInTransaction(() =>
+            {
+                DataTable reorder = _db.ExecuteDataTable(
+                    "SELECT partNumber, quantity, status FROM reorder_request WHERE reorderID = @reorderID FOR UPDATE",
+                    new Dictionary<string, object> { { "@reorderID", reorderID } });
+                if (reorder.Rows.Count != 1 ||
+                    !string.Equals(reorder.Rows[0]["status"].ToString(), "processing", StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(reorder.Rows[0]["partNumber"].ToString(), PartID, StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                int quantity = Convert.ToInt32(reorder.Rows[0]["quantity"]);
+                if (quantity <= 0) return;
+
+                DataTable sparePart = _db.ExecuteDataTable(
+                    "SELECT partNumber FROM spare_part WHERE partNumber = @partNumber FOR UPDATE",
+                    new Dictionary<string, object> { { "@partNumber", PartID } });
+                if (sparePart.Rows.Count != 1) return;
+
+                _db.ExecuteNonQueryCommand(
+                    "UPDATE spare_part SET quantity = quantity + @reorderQty WHERE partNumber = @partNumber",
+                    new Dictionary<string, object> { { "@reorderQty", quantity }, { "@partNumber", PartID } });
+                _db.ExecuteNonQueryCommand(
+                    "UPDATE reorder_request SET status = 'finished' WHERE reorderID = @reorderID AND status = 'processing'",
+                    new Dictionary<string, object> { { "@reorderID", reorderID } });
+            });
         }
 
         public void SetModifyPartID(string PartID)

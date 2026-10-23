@@ -69,7 +69,12 @@ namespace LMCIS.System_page
                 {
                     if (tbPassword.Text.Equals(tbConfirmPass.Text)) //Confirm password matched.
                     {
-                        recoveryController.ChangePassword(tbConfirmPass.Text);
+                        if (!recoveryController.ChangePassword(tbConfirmPass.Text))
+                        {
+                            userFound = false;
+                            lblChangePassMsg.Text = "Please find the account first.";
+                            return;
+                        }
                         MessageBox.Show("Password changed! The system will redirect to the login page.",
                             "System message");
                         Form login = new Login();
@@ -96,6 +101,7 @@ namespace LMCIS.System_page
             //Clean the content in the label.
             lblFinfMsg.Text = "";
             lblChangePassMsg.Text = "";
+            userFound = false;
             int count = 0;
             UID = phone = email = "";
 

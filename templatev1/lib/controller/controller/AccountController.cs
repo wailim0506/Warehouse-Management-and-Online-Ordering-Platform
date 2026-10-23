@@ -12,26 +12,28 @@ namespace LMCIS.controller
         private string accountID, firstName, lastName, UserID, AccountType, sqlStr;
         private Boolean isLM;
         UIController UIController;
-        private readonly Database db;
-        private readonly Validator validator = new Validator();
+        private readonly IDatabase db;
+        private readonly Validator validator;
 
         
-        public AccountController(Database db = null)
+        public AccountController(IDatabase db = null)
         {
             IsLogin = false;
             isLM = false;
             this.db = db ?? new Database();
+            validator = new Validator(this.db);
         }
 
         public bool Login(string UID, string Pass, UIController UI)
         {
+            ResetLoginState();
             try
             {
                 // avoid sql injection
                 if (validator.IsValidUsername(UID) == false || validator.IsValidPassword(Pass) == false)
                 {
                     Log.LogMessage(LogLevel.Critical, "AccountController",
-                        $"Login method User id: {UID} Password : {Pass} is not valid.");
+                        $"Login method User id: {UID} has invalid credentials format.");
                     return false;
                 }
 
@@ -56,9 +58,18 @@ namespace LMCIS.controller
             }
             catch (Exception e)
             {
-                MessageBox.Show(e.Message);
+                ResetLoginState();
+                Log.LogException(e, "AccountController - Login");
                 return false;
             }
+        }
+
+        private void ResetLoginState()
+        {
+            IsLogin = false;
+            isLM = false;
+            accountID = firstName = lastName = UserID = AccountType = null;
+            UIController = null;
         }
 
         private (string, System.Collections.Generic.Dictionary<string, object>) GetAccountDataQuery(string UID)
@@ -80,7 +91,7 @@ namespace LMCIS.controller
             if (!isValid)
             {
                 Log.LogMessage(LogLevel.Debug, "AccountController",
-                    $"Login method User id: {UserID} Password : {inputPassword} not valid with stored password : {storedPassword}.");
+                    $"Login method User id: {UserID} supplied an incorrect password.");
             }
 
             return isValid;

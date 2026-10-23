@@ -10,6 +10,7 @@ namespace LMCIS.controller.Utilities
         // string GetConnectionString();
         // string TestConnection(List<string> connectionStrings);
         void Dispose();
+        void ExecuteInTransaction(Action action);
         object ExecuteScalarCommand(string sqlQuery, Dictionary<string, object> queryParameters);
         void ExecuteNonQueryCommand(string sqlQuery, Dictionary<string, object> queryParameters);
         MySqlDataReader ExecuteReaderCommand(string sqlQuery, Dictionary<string, object> queryParameters);

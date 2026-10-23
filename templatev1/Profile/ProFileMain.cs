@@ -537,10 +537,16 @@ namespace LMCIS.Profile
                     {
                         RecoveryController recoveryController =
                             new RecoveryController(accountController);
-                        recoveryController.ChangePassword(tbConfirmPass.Text);
-                        MessageBox.Show("Password changed successful!\nThe system will redirect to the login page.",
-                            "System message", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        btnLogOut_Click(this, e); //Redirect to login page.
+                        if (recoveryController.ChangePassword(tbConfirmPass.Text))
+                        {
+                            MessageBox.Show("Password changed successful!\nThe system will redirect to the login page.",
+                                "System message", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            btnLogOut_Click(this, e); //Redirect to login page.
+                        }
+                        else
+                        {
+                            lblPwdMsg.Text = "Unable to verify the account. Please log in again.";
+                        }
                     }
                 }
                 else

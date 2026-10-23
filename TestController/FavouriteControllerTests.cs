@@ -1,99 +1,67 @@
-﻿using System;
-using System.Collections.Generic;
 using System.Data;
 using LMCIS.controller;
-using LMCIS.controller.Utilities;
 using Xunit;
 
 namespace TestController
 {
     public class FavouriteControllerTests
     {
-        private readonly FavouriteFakeDatabase _FavouriteFakeDatabase;
-        private readonly favouriteController _favouriteController;
-
-        public FavouriteControllerTests()
-        {
-            _FavouriteFakeDatabase = new FavouriteFakeDatabase();
-            _favouriteController = new favouriteController(_FavouriteFakeDatabase);
-        }
-        
         [Fact]
-        public void IsFavourite_InvalidData_ReturnsFalse()
+        public void IsFavourite_ReturnsDatabaseExistenceResultWithBoundValues()
         {
-            // Arrange
-            string partNumber = "LMP00003";
-            string customerId = "LMS00001";
+            var db = new RecordingDatabase();
+            db.Query = (sql, parameters) => Result(sql.Contains("SELECT * FROM favourite"));
+            var controller = new favouriteController(db);
 
-            // Act
-            var result = _favouriteController.IsFavourite(partNumber, customerId);
-
-            // Assert
-            Assert.False(result);
-        }
-    }
-
-    public partial class FavouriteFakeDatabase : Database
-    {
-        private bool _throwError;
-        DataTable _dataTable;
-
-        public bool IsFavouriteRemoved { get; private set; }
-        public bool IsFavouriteAdded { get; private set; }
-
-        public void SetFavouriteData(string customerId)
-        {
-            _dataTable = new DataTable();
-            _dataTable.Columns.Add("customerID");
-            _dataTable.Columns.Add("itemID");
-            _dataTable.Columns.Add("partNumber");
-            _dataTable.Columns.Add("categoryID");
-            _dataTable.Rows.Add(customerId, customerId, "LMP00003", "1");
+            Assert.True(controller.IsFavourite("P-1", "LMC00001"));
+            var query = Assert.Single(db.Queries);
+            Assert.Equal("P-1", query.Parameters["@partNumber"]);
+            Assert.Equal("LMC00001", query.Parameters["@customerID"]);
         }
 
-        public void SetProductData(string partNumber, string itemId, bool throwError = false)
+        [Fact]
+        public void AddAndRemoveFavouriteResolveProductAndBindCustomerAndItem()
         {
-            _throwError = throwError;
-            _dataTable = new DataTable();
-            _dataTable.Columns.Add("itemID");
-            _dataTable.Rows.Add(itemId);
+            var db = new RecordingDatabase();
+            db.Query = (sql, parameters) => sql.Contains("SELECT itemID") ? Product("I-1") : Result(false);
+            var controller = new favouriteController(db);
+
+            Assert.True(controller.AddToFavourite("P-1", "LMC00001"));
+            Assert.True(controller.RemoveFromFavourite("P-1", "LMC00001"));
+
+            Assert.Equal(2, db.Commands.Count);
+            Assert.Equal("LMC00001", db.Commands[0].Parameters["@cid"]);
+            Assert.Equal("I-1", db.Commands[0].Parameters["@id"]);
+            Assert.Equal("LMC00001", db.Commands[1].Parameters["@cid"]);
+            Assert.Equal("I-1", db.Commands[1].Parameters["@id"]);
         }
 
-        public void SetFavouriteCheckData(string partNumber, string customerId)
+        [Fact]
+        public void AddOrRemoveMissingProductReturnsFalseWithoutIndexingEmptyResult()
         {
-            _dataTable = new DataTable();
-            _dataTable.Columns.Add("customerID");
-            _dataTable.Columns.Add("itemID");
-            _dataTable.Columns.Add("partNumber");
-            _dataTable.Rows.Add(customerId, customerId, partNumber);
+            var db = new RecordingDatabase();
+            db.Query = (sql, parameters) => new DataTable();
+            var controller = new favouriteController(db);
+
+            Assert.False(controller.AddToFavourite("missing", "LMC00001"));
+            Assert.False(controller.RemoveFromFavourite("missing", "LMC00001"));
+            Assert.Empty(db.Commands);
         }
 
-        public DataTable ExecuteDataTable(string sqlStr, Dictionary<string, object> queryParameters = null)
+        private static DataTable Product(string itemId)
         {
-            if (_throwError)
-            {
-                throw new Exception("Database error");
-            }
-
-            return _dataTable;
+            var table = new DataTable();
+            table.Columns.Add("itemID");
+            table.Rows.Add(itemId);
+            return table;
         }
 
-        public void ExecuteNonQueryCommand(string sqlStr, Dictionary<string, object> queryParameters = null)
+        private static DataTable Result(bool exists)
         {
-            if (_throwError)
-            {
-                throw new Exception("Database error");
-            }
-
-            if (sqlStr.Contains("DELETE FROM favourite"))
-            {
-                IsFavouriteRemoved = true;
-            }
-
-            if (sqlStr.Contains("INSERT INTO favourite"))
-            {
-                IsFavouriteAdded = true;
-            }
+            var table = new DataTable();
+            table.Columns.Add("itemID");
+            if (exists) table.Rows.Add("I-1");
+            return table;
         }
     }
 }

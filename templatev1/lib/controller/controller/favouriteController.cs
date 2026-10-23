@@ -8,9 +8,9 @@ namespace LMCIS.controller
     public class favouriteController : abstractController
     {
         string sqlCmd;
-        private readonly Database _database;
+        private readonly IDatabase _database;
 
-        public favouriteController(Database database = null)
+        public favouriteController(IDatabase database = null)
         {
             sqlCmd = "";
             _database = database ?? new Database();
@@ -35,6 +35,7 @@ namespace LMCIS.controller
             {
                 { "@partNumber", num }
             });
+            if (dt.Rows.Count == 0) return false;
             string itemID = dt.Rows[0][0].ToString();
 
             sqlCmd = "DELETE FROM favourite WHERE itemID = @id AND customerID = @cid";
@@ -118,6 +119,7 @@ namespace LMCIS.controller
             {
                 { "@partNumber", num }
             });
+            if (dt.Rows.Count == 0) return false;
             string itemID = dt.Rows[0][0].ToString();
 
             sqlCmd = "INSERT INTO favourite (customerID,itemID) VALUES (@cid,@id);";

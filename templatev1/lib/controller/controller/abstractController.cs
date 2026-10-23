@@ -4,6 +4,6 @@ namespace LMCIS.controller
 {
     public abstract class abstractController //abstract class for controller
     {
-        protected Database _db;
+        protected IDatabase _db;
     }
 }

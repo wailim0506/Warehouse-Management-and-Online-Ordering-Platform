@@ -7,9 +7,7 @@ namespace LMCIS.controller
 {
     public class addPartToOrderController : abstractController
     {
-        private readonly Database _db;
-
-        public addPartToOrderController(Database database = null)
+        public addPartToOrderController(IDatabase database = null)
         {
             _db = database ?? new Database();
         }
@@ -94,63 +92,80 @@ namespace LMCIS.controller
 
         public bool addToOrder(string orderId, string partNum, int qty, int price, bool isLM)
         {
-            int qtyAlreadyInOrder = getNumberOfPartAlreadyInOrder(orderId, partNum);
-            if (qtyAlreadyInOrder != 0) //already in order
+            if (qty <= 0) return false;
+
+            try
             {
-                int newQty = qtyAlreadyInOrder + qty;
-                try
+                bool added = false;
+                _db.ExecuteInTransaction(() =>
                 {
-                    string sqlCmd =
-                        "UPDATE order_line SET quantity = @qty WHERE partNumber = @partNum AND orderID = @orderID";
-                    Dictionary<string, object> parameters = new Dictionary<string, object>
+                    DataTable order = _db.ExecuteDataTable(
+                        "SELECT status FROM order_ WHERE orderID = @orderID FOR UPDATE",
+                        new Dictionary<string, object> { { "@orderID", orderId } });
+                    if (order.Rows.Count != 1 ||
+                        (!string.Equals(order.Rows[0]["status"].ToString(), "Pending", StringComparison.OrdinalIgnoreCase) &&
+                         !string.Equals(order.Rows[0]["status"].ToString(), "Processing", StringComparison.OrdinalIgnoreCase)))
+                        return;
+
+                    string inventoryColumn = isLM ? "LM_onSaleQty" : "onSaleQty";
+                    DataTable inventory = _db.ExecuteDataTable(
+                        $"SELECT {inventoryColumn} FROM product WHERE partNumber = @partNum FOR UPDATE",
+                        new Dictionary<string, object> { { "@partNum", partNum } });
+                    if (inventory.Rows.Count != 1 || Convert.ToInt32(inventory.Rows[0][0]) < qty) return;
+
+                    DataTable existingLine = _db.ExecuteDataTable(
+                        "SELECT quantity FROM order_line WHERE partNumber = @partNum AND orderID = @orderID FOR UPDATE",
+                        new Dictionary<string, object>
+                        {
+                            { "@partNum", partNum },
+                            { "@orderID", orderId }
+                        });
+                    if (existingLine.Rows.Count > 1)
+                        throw new InvalidOperationException("An order contains duplicate lines for this part.");
+
+                    if (existingLine.Rows.Count == 1)
                     {
-                        { "@qty", newQty },
-                        { "@partNum", partNum },
-                        { "@orderID", orderId }
-                    };
-                    _db.ExecuteNonQueryCommand(sqlCmd, parameters);
-                    if (deductOnSalesQty(partNum, qty, isLM))
-                    {
-                        return true;
+                        int newQuantity = checked(Convert.ToInt32(existingLine.Rows[0][0]) + qty);
+                        _db.ExecuteNonQueryCommand(
+                            "UPDATE order_line SET quantity = @qty WHERE partNumber = @partNum AND orderID = @orderID",
+                            new Dictionary<string, object>
+                            {
+                                { "@qty", newQuantity },
+                                { "@partNum", partNum },
+                                { "@orderID", orderId }
+                            });
                     }
                     else
                     {
-                        return false;
+                        _db.ExecuteNonQueryCommand(
+                            "INSERT INTO order_line VALUES (@partNum, @orderID, @qty, @orderUnitPrice)",
+                            new Dictionary<string, object>
+                            {
+                                { "@partNum", partNum },
+                                { "@orderID", orderId },
+                                { "@qty", qty },
+                                { "@orderUnitPrice", price }
+                            });
                     }
-                }
-                catch (Exception ex)
-                {
-                    Log.LogException(ex, "addPartToOrderController");
-                    return false;
-                }
+
+                    string updateInventory =
+                        $"UPDATE product SET {inventoryColumn} = {inventoryColumn} - @qty " +
+                        $"WHERE partNumber = @partNum AND {inventoryColumn} >= @qty";
+                    object affectedRows = _db.ExecuteCommand(updateInventory,
+                        new Dictionary<string, object> { { "@qty", qty }, { "@partNum", partNum } },
+                        command => command.ExecuteNonQuery());
+                    if (Convert.ToInt32(affectedRows) != 1)
+                        throw new InvalidOperationException("On-sale inventory changed while adding the order line.");
+
+                    added = true;
+                });
+
+                return added;
             }
-            else //not already in order
+            catch (Exception ex)
             {
-                try
-                {
-                    string sqlCmd = "INSERT INTO order_line VALUES (@partNum, @orderID, @qty, @orderUnitPrice)";
-                    Dictionary<string, object> parameters = new Dictionary<string, object>
-                    {
-                        { "@partNum", partNum },
-                        { "@orderID", orderId },
-                        { "@qty", qty },
-                        { "@orderUnitPrice", price }
-                    };
-                    _db.ExecuteNonQueryCommand(sqlCmd, parameters);
-                    if (deductOnSalesQty(partNum, qty, isLM))
-                    {
-                        return true;
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.LogException(ex, "addPartToOrderController");
-                    return false;
-                }
+                Log.LogException(ex, "addPartToOrderController");
+                return false;
             }
         }
 
@@ -181,29 +196,17 @@ namespace LMCIS.controller
 
         public bool deductOnSalesQty(string partNum, int qty, bool isLM)
         {
-            int onSaleQty = getOnSaleQty(partNum, isLM);
-            int newOnSaleQty = onSaleQty - qty;
-
-
+            if (qty <= 0) return false;
             try
             {
-                string sqlCmd = "";
-                if (!isLM)
-                {
-                    sqlCmd = "UPDATE product SET onSaleQty = @qty WHERE partNumber = @partNum";
-                }
-                else
-                {
-                    sqlCmd = "UPDATE product SET LM_onSaleQty = @qty WHERE partNumber = @partNum";
-                }
-
-                Dictionary<string, object> parameters = new Dictionary<string, object>
-                {
-                    { "@qty", newOnSaleQty },
-                    { "@partNum", partNum }
-                };
-                _db.ExecuteNonQueryCommand(sqlCmd, parameters);
-                return true;
+                string inventoryColumn = isLM ? "LM_onSaleQty" : "onSaleQty";
+                string sqlCmd =
+                    $"UPDATE product SET {inventoryColumn} = {inventoryColumn} - @qty " +
+                    $"WHERE partNumber = @partNum AND {inventoryColumn} >= @qty";
+                object affectedRows = _db.ExecuteCommand(sqlCmd,
+                    new Dictionary<string, object> { { "@qty", qty }, { "@partNum", partNum } },
+                    command => command.ExecuteNonQuery());
+                return Convert.ToInt32(affectedRows) == 1;
             }
             catch (Exception ex)
             {

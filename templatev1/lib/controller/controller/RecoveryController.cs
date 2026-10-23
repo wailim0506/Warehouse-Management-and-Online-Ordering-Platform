@@ -10,7 +10,7 @@ namespace LMCIS.controller
 {
     public class RecoveryController : abstractController
     {
-        private Database db;
+        private IDatabase db;
         private const string CustomerTable = "customer";
         private const string StaffTable = "staff";
         private const string CustomerAccountTable = "customer_account";
@@ -24,19 +24,20 @@ namespace LMCIS.controller
 
         AccountController _accountController;
         private Validator _validator;
+        private string _verifiedUserId;
 
-        public RecoveryController()
+        public RecoveryController() : this(null, null)
         {
-            db = new Database();
-            _validator = new Validator();
         }
 
-        public RecoveryController(AccountController accountController, Database db = null)
+        public RecoveryController(AccountController accountController, IDatabase db = null)
         {
             _accountController = accountController;
-            UID = accountController.GetUid();
-            _validator = new Validator();
+            UID = accountController == null ? null : accountController.GetUid();
             this.db = db ?? new Database();
+            _validator = new Validator(this.db);
+            if (accountController != null && accountController.IsLogin && _validator.IsValidUsername(UID))
+                _verifiedUserId = UID;
             Log.LogMessage(LogLevel.Debug, "Recovery Controller", "Recovery Controller created.");
         }
 
@@ -48,27 +49,31 @@ namespace LMCIS.controller
         //Find the user in the database
         public bool FindUser(string userId, string emailAdd, string phoneNo)
         {
-            //if (!ValidateUserDetails(userId, emailAdd, phoneNo)) return false;
-            UID = userId;
-            email = emailAdd;
-            phone = phoneNo;
+            _verifiedUserId = null;
+            UID = null;
+            email = null;
+            phone = null;
 
             DataTable dt = new DataTable();
             try
             {
-                sqlStr = ResolveFindUserQuery(UID);
+                sqlStr = ResolveFindUserQuery(userId);
                 if (string.IsNullOrEmpty(sqlStr)) return false;
 
                 Dictionary<string, object> queryParameters = new Dictionary<string, object>
                 {
-                    { "@id", UID },
-                    { "@phone", phone },
-                    { "@email", email }
+                    { "@id", userId },
+                    { "@phone", phoneNo },
+                    { "@email", emailAdd }
                 };
                 dt = db.ExecuteDataTable(sqlStr, queryParameters);
-                Log.LogMessage(LogLevel.Debug, "Recovery Controller",
-                    $"FindUser: UserID = {UID}, email = {email}, phone = {phone}");
-                return dt.Rows.Count == 1;
+                if (dt.Rows.Count != 1) return false;
+
+                UID = _verifiedUserId = userId;
+                email = emailAdd;
+                phone = phoneNo;
+                Log.LogMessage(LogLevel.Debug, "Recovery Controller", "FindUser: matching account details found.");
+                return true;
             }
             catch (Exception e)
             {
@@ -96,18 +101,22 @@ namespace LMCIS.controller
         }
 
         //Update password in the database
-        public void ChangePassword(string newPwd)
+        public bool ChangePassword(string newPwd)
         {
+            if (string.IsNullOrWhiteSpace(_verifiedUserId)) return false;
+
             string hashedPwd = HashPassword(newPwd);
-            string sqlStr = ResolveChangePasswordQuery(UID);
+            string sqlStr = ResolveChangePasswordQuery(_verifiedUserId);
             db.ExecuteNonQueryCommand(sqlStr, new Dictionary<string, object>
             {
                 { "@password", hashedPwd },
                 { "@pwdChangeDate", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") },
-                { "@id", UID }
+                { "@id", _verifiedUserId }
             });
             Log.LogMessage(LogLevel.Debug, "Recovery Controller",
-                $"ChangePassword: UserID = {UID}, new password = {newPwd}");
+                "ChangePassword: password updated.");
+            _verifiedUserId = null;
+            return true;
         }
 
         //Return the new LMC ID to the create account form.

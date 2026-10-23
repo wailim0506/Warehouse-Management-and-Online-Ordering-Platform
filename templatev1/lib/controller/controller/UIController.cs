@@ -7,7 +7,7 @@ namespace LMCIS.controller
     public class UIController : abstractController
     {
         //For DataBase
-        private Database DB;
+        private IDatabase DB;
 
         private bool BWMode;
         private bool showbtn1, showbtn2, showbtn3, showbtn4, showbtn5; //whether the button is visible.
@@ -16,7 +16,7 @@ namespace LMCIS.controller
 
         private AccountController accountController;
 
-        public UIController(AccountController accountController, Database db = null)
+        public UIController(AccountController accountController, IDatabase db = null)
         {
             DB = db ?? new Database();
             this.accountController = accountController;

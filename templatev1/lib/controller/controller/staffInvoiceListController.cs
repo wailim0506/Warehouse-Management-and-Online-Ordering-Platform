@@ -6,9 +6,7 @@ namespace LMCIS.controller
 {
     public class staffInvoiceListController : abstractController
     {
-        private readonly Database _db;
-
-        public staffInvoiceListController(Database database = null)
+        public staffInvoiceListController(IDatabase database = null)
         {
             _db = database ?? new Database();
         }
@@ -56,7 +54,9 @@ namespace LMCIS.controller
 
             if (sortBy != "")
             {
-                sqlCmd += $" ORDER BY {sortByOptions[sortBy]}";
+                if (!sortByOptions.TryGetValue(sortBy, out var sortExpression))
+                    throw new System.ArgumentException("Unsupported invoice sort option.", nameof(sortBy));
+                sqlCmd += $" ORDER BY {sortExpression}";
             }
 
             return _db.ExecuteDataTable(sqlCmd, parameters.Count == 0 ? null : parameters);

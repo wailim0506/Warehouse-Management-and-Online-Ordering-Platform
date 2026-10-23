@@ -114,6 +114,18 @@ For detailed setup and workflow documentation, use the Docker wiki as the active
 - Installation roadmap content: `docker/wiki/src/content/docs/installation/**`
 - User workflow content: `docker/wiki/src/content/docs/user-guide/**`
 
+## Testing
+
+On Windows, run the native validation script from PowerShell to restore NuGet packages, build the full solution with Visual Studio MSBuild, run every xUnit test, and save a TRX result:
+
+See [Testing](docs/testing.md) for native test commands and the optional isolated database integration tests.
+
+```powershell
+.\scripts\test.ps1 -Configuration Release
+```
+
+The native workflow requires Visual Studio or Build Tools with MSBuild, the .NET Framework 4.7.2 targeting pack, and VSTest. MSBuild restores the legacy NuGet packages as part of the workflow. It reports restore, build, test, and zero-test discovery failures as errors.
+
 ## Parallels VM Build Workflow
 
 Use this reusable host-side script when you need repeatable validation inside a Windows Parallels VM:

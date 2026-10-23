@@ -6,7 +6,27 @@ namespace LMCIS.controller.Utilities
 {
     public class Validator
     {
-        readonly Database _database = new Database();
+        private readonly IDatabase _database;
+
+        public Validator(IDatabase database = null)
+        {
+            _database = database;
+        }
+
+        private object ExecuteScalarCommand(string query, Dictionary<string, object> parameters)
+        {
+            if (_database != null) return _database.ExecuteScalarCommand(query, parameters);
+
+            var database = new Database();
+            try
+            {
+                return database.ExecuteScalarCommand(query, parameters);
+            }
+            finally
+            {
+                database.Dispose();
+            }
+        }
         private static readonly string EmailRegex = @"^([\w-\.]+@([\w-]+\.)+[\w-]{2,4})?$";
 
         private static readonly string PasswordRegex =
@@ -23,40 +43,44 @@ namespace LMCIS.controller.Utilities
         // check if the orderId is valid
         public bool IsValidOrderId(string orderId)
         {
-            return _database.ExecuteScalarCommand("SELECT OrderID FROM order_ WHERE OrderID = @orderId",
+            if (string.IsNullOrWhiteSpace(orderId)) return false;
+            return ExecuteScalarCommand("SELECT OrderID FROM order_ WHERE OrderID = @orderId",
                 new Dictionary<string, object> { { "@orderId", orderId } }) != null;
         }
 
         public bool IsValidRelayId(string relayId)
         {
-            return _database.ExecuteScalarCommand("SELECT RelayID FROM deliveryrelay WHERE RelayID = @relayId",
+            if (string.IsNullOrWhiteSpace(relayId)) return false;
+            return ExecuteScalarCommand("SELECT RelayID FROM deliveryrelay WHERE RelayID = @relayId",
                 new Dictionary<string, object> { { "@relayId", relayId } }) != null;
         }
 
         public bool IsValidRelayName(string relayName)
         {
-            return _database.ExecuteScalarCommand("SELECT RelayName FROM deliveryrelay WHERE RelayName = @relayName",
+            if (string.IsNullOrWhiteSpace(relayName)) return false;
+            return ExecuteScalarCommand("SELECT RelayName FROM deliveryrelay WHERE RelayName = @relayName",
                 new Dictionary<string, object> { { "@relayName", relayName } }) != null;
         }
 
         public bool IsValidEmail(string email)
         {
-            return Regex.IsMatch(email, EmailRegex);
+            return !string.IsNullOrWhiteSpace(email) && Regex.IsMatch(email, EmailRegex);
         }
 
         public bool IsValidName(string name)
         {
-            return Regex.IsMatch(name, @"^[a-zA-Z]+$");
+            return !string.IsNullOrWhiteSpace(name) && Regex.IsMatch(name, @"^[a-zA-Z]+$");
         }
         
         public bool IsValidPassword(string inputPassword)
         {
             // return Regex.IsMatch(inputPassword, PasswordRegex) && !IsPotentialSqlInjection(inputPassword);
-            return !IsPotentialSqlInjection(inputPassword);
+            return !string.IsNullOrEmpty(inputPassword) && !IsPotentialSqlInjection(inputPassword);
         }
 
         private bool IsPotentialSqlInjection(string userInput)
         {
+            if (string.IsNullOrEmpty(userInput)) return false;
             // HashSet of patterns for SQL Injection
             HashSet<string> sqlCheckList = new HashSet<string>
             {
@@ -80,7 +104,7 @@ namespace LMCIS.controller.Utilities
         public bool IsValidPhoneNumber(string phone)
         {
             if (string.IsNullOrEmpty(phone)) return false;
-            return Regex.IsMatch(phone, PhoneNumberRegex) || Regex.IsMatch(phone, PhoneNumberRegex2) && !IsPotentialSqlInjection(phone);
+            return (Regex.IsMatch(phone, PhoneNumberRegex) || Regex.IsMatch(phone, PhoneNumberRegex2)) && !IsPotentialSqlInjection(phone);
         }
     }
 }

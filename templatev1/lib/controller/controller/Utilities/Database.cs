@@ -9,13 +9,21 @@ namespace LMCIS.controller.Utilities
     public class Database : IDisposable, IDatabase
     {
         private readonly MySqlConnection _connection;
-        private Log _logger;
+        private MySqlTransaction _transaction;
 
         public Database(string connectionString = null)
         {
             _connection = new MySqlConnection(connectionString ?? GetConnectionString());
-            _connection.Open();
-            _logger = new Log();
+            try
+            {
+                _connection.Open();
+                new Log();
+            }
+            catch
+            {
+                _connection.Dispose();
+                throw;
+            }
         }
 
         private string GetConnectionString()
@@ -54,6 +62,40 @@ namespace LMCIS.controller.Utilities
             _connection?.Dispose();
         }
 
+        public void ExecuteInTransaction(Action action)
+        {
+            if (action == null) throw new ArgumentNullException(nameof(action));
+            if (_transaction != null)
+                throw new InvalidOperationException("Nested database transactions are not supported.");
+
+            using (var transaction = _connection.BeginTransaction())
+            {
+                _transaction = transaction;
+                try
+                {
+                    action();
+                    transaction.Commit();
+                }
+                catch
+                {
+                    try
+                    {
+                        transaction.Rollback();
+                    }
+                    catch (Exception rollbackError)
+                    {
+                        // Preserve the operation's original error if the connection was lost.
+                        Log.LogException(rollbackError, "Database rollback");
+                    }
+                    throw;
+                }
+                finally
+                {
+                    _transaction = null;
+                }
+            }
+        }
+
         public object ExecuteScalarCommand(string sqlQuery, Dictionary<string, object> queryParameters)
         {
             return ExecuteCommand(sqlQuery, queryParameters, command => command.ExecuteScalar());
@@ -77,17 +119,9 @@ namespace LMCIS.controller.Utilities
         public object ExecuteCommand(string sqlQuery, Dictionary<string, object> queryParameters,
             Func<MySqlCommand, object> execute)
         {
-            using (var command = _connection.CreateCommand())
+            if (execute == null) throw new ArgumentNullException(nameof(execute));
+            using (var command = CreateCommand(sqlQuery, queryParameters))
             {
-                command.CommandText = sqlQuery;
-                if (queryParameters != null)
-                {
-                    foreach (var parameter in queryParameters)
-                    {
-                        command.Parameters.Add(new MySqlParameter(parameter.Key, parameter.Value));
-                    }
-                }
-
                 try
                 {
                     return execute(command);
@@ -95,8 +129,7 @@ namespace LMCIS.controller.Utilities
                 catch (Exception ex)
                 {
                     Log.LogException(ex, "Database");
-                    throw new InvalidOperationException("Database operation failed When executing command: " + sqlQuery,
-                        ex);
+                    throw new InvalidOperationException("Database command failed.", ex);
                 }
             }
         }
@@ -105,9 +138,13 @@ namespace LMCIS.controller.Utilities
         {
             var command = _connection.CreateCommand();
             command.CommandText = query;
-            foreach (var parameter in parameters)
+            command.Transaction = _transaction;
+            if (parameters != null)
             {
-                command.Parameters.AddWithValue(parameter.Key, parameter.Value);
+                foreach (var parameter in parameters)
+                {
+                    command.Parameters.AddWithValue(parameter.Key, parameter.Value ?? DBNull.Value);
+                }
             }
 
             Log.LogMessage(LogLevel.Debug, "Database", $"CreateCommand : {command.CommandText}");
@@ -116,31 +153,35 @@ namespace LMCIS.controller.Utilities
 
         public void ExecuteNonQuery(MySqlCommand command)
         {
+            if (command == null) throw new ArgumentNullException(nameof(command));
+            if (command.Connection != _connection)
+                throw new ArgumentException("The command must use this database connection.", nameof(command));
+            command.Transaction = _transaction;
             command.ExecuteNonQuery();
         }
 
         public virtual DataTable ExecuteDataTable(string sqlQuery, Dictionary<string, object> queryParameters)
         {
-            var reader = (MySqlDataReader)ExecuteCommand(sqlQuery, queryParameters, command => command.ExecuteReader());
-            var dt = new DataTable();
-            dt.Load(reader);
-            Log.LogMessage(LogLevel.Debug, "Database", $"ExecuteDataTable : {sqlQuery}");
-            return dt;
+            return (DataTable)ExecuteCommand(sqlQuery, queryParameters, command =>
+            {
+                using (var reader = command.ExecuteReader())
+                {
+                    var table = new DataTable();
+                    table.Load(reader);
+                    return table;
+                }
+            });
         }
 
         public DataTable ExecuteDataTable(string sqlQuery)
         {
-            var reader = (MySqlDataReader)ExecuteCommand(sqlQuery, null, command => command.ExecuteReader());
-            DataTable dt = new DataTable();
-            dt.Load(reader);
-            return dt;
-            //return (DataTable)ExecuteCommand(sqlQuery, null, command => command.ExecuteReader());
+            return ExecuteDataTable(sqlQuery, null);
         }
 
         // Execute a scalar command and return the result
         public object ExecuteScalar(string sqlCmd)
         {
-            using (MySqlCommand command = new MySqlCommand(sqlCmd, _connection))
+            using (var command = CreateCommand(sqlCmd, null))
             {
                 Log.LogMessage(LogLevel.Debug, "Database", $"ExecuteScalar : {sqlCmd}");
                 return command.ExecuteScalar();
@@ -150,7 +191,7 @@ namespace LMCIS.controller.Utilities
         // Execute a scalar command and return the result as a string
         public string ExecuteScalarCommand(string sqlQuery)
         {
-            using (MySqlCommand command = new MySqlCommand(sqlQuery, _connection))
+            using (var command = CreateCommand(sqlQuery, null))
             {
                 Log.LogMessage(LogLevel.Debug, "Database", $"ExecuteScalarCommand : {sqlQuery}");
                 return command.ExecuteScalar().ToString();

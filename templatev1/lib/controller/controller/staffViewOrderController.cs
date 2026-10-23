@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Windows.Forms;
 using LMCIS.controller.Utilities;
 using Microsoft.Extensions.Logging;
 
@@ -11,7 +10,7 @@ namespace LMCIS.controller
     {
         string sqlCmd;
 
-        public staffViewOrderController(Database database = null)
+        public staffViewOrderController(IDatabase database = null)
         {
             sqlCmd = "";
             _db = database ?? new Database();
@@ -209,12 +208,11 @@ namespace LMCIS.controller
         //Chenge order line status whether is 
         private bool CheckStatus(string orderID)
         {
-            //get deliverman name and contact from staff table
             DataTable dt = _db.ExecuteDataTable(
-                "SELECT status FROM order_ WHERE orderID = @orderID",
+                "SELECT status FROM order_ WHERE orderID = @orderID FOR UPDATE",
                 new Dictionary<string, object> { { "@orderID", orderID } });
 
-            return dt.Rows[0]["status"].ToString().Equals("Processing");
+            return dt.Rows.Count == 1 && dt.Rows[0]["status"].ToString().Equals("Processing", StringComparison.OrdinalIgnoreCase);
         }
 
         //Storeman change order status to ready to ship.
@@ -222,31 +220,51 @@ namespace LMCIS.controller
         {
             try
             {
-                if (CheckStatus(orderID))
+                bool succeeded = false;
+                _db.ExecuteInTransaction(() =>
                 {
-                    _db.ExecuteNonQueryCommand(
-                        "UPDATE order_line OL, spare_part SP SET SP.quantity = SP.quantity - OL.quantity " +
-                        "WHERE OL.partNumber = SP.partNumber AND OL.orderID = @orderID",
+                    if (!CheckStatus(orderID)) return;
+
+                    DataTable lines = _db.ExecuteDataTable(
+                        "SELECT OL.partNumber, OL.quantity, SP.quantity AS availableQuantity " +
+                        "FROM order_line OL LEFT JOIN spare_part SP ON SP.partNumber = OL.partNumber " +
+                        "WHERE OL.orderID = @orderID ORDER BY OL.partNumber FOR UPDATE",
                         new Dictionary<string, object> { { "@orderID", orderID } });
+                    if (lines.Rows.Count == 0) return;
+
+                    foreach (DataRow line in lines.Rows)
+                    {
+                        if (line.IsNull("availableQuantity")) return;
+                        int quantity = Convert.ToInt32(line["quantity"]);
+                        int available = Convert.ToInt32(line["availableQuantity"]);
+                        if (quantity <= 0 || available < quantity) return;
+                    }
+
+                    foreach (DataRow line in lines.Rows)
+                    {
+                        int quantity = Convert.ToInt32(line["quantity"]);
+                        _db.ExecuteNonQueryCommand(
+                            "UPDATE spare_part SET quantity = quantity - @quantity " +
+                            "WHERE partNumber = @partNumber AND quantity >= @quantity",
+                            new Dictionary<string, object>
+                            {
+                                { "@quantity", quantity },
+                                { "@partNumber", line["partNumber"].ToString() }
+                            });
+                    }
 
                     _db.ExecuteNonQueryCommand(
-                        "UPDATE order_ SET status = 'Ready to Ship' WHERE orderID = @orderID",
+                        "UPDATE order_ SET status = 'Ready to Ship' WHERE orderID = @orderID AND status = 'Processing'",
                         new Dictionary<string, object> { { "@orderID", orderID } });
+                    succeeded = true;
+                });
 
-                    return true;
-                }
-                else
-                    MessageBox.Show("Can only operate when status is Processing.", "System error", MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-
-                return false;
+                return succeeded;
             }
             catch (Exception ex)
             {
                 Log.LogMessage(LogLevel.Error, "staff view order controller",
                     $"Error changing order status: {ex.Message}");
-                MessageBox.Show("System Error! Please Contact The Help Desk.", "System error", MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
                 return false;
             }
         }

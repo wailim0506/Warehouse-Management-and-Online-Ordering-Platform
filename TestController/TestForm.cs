@@ -1,4 +1,5 @@
-﻿using System.Windows.Forms;
+using System;
+using System.Threading;
 using LMCIS.System_page;
 using Xunit;
 
@@ -6,13 +7,29 @@ namespace TestController
 {
     public class TestForm
     {
-        // test login form
         [Fact]
-        public void TestLoginForm()
+        public void LoginFormCanBeConstructedAndDisposedOnStaThreadWithoutLoadingServices()
         {
-            Form loginForm = new Login();
-            loginForm.Show();
-            Assert.True(loginForm.Visible);
+            Exception failure = null;
+            var thread = new Thread(() =>
+            {
+                try
+                {
+                    using (var loginForm = new Login())
+                    {
+                        Assert.NotNull(loginForm);
+                        Assert.False(loginForm.Visible);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    failure = exception;
+                }
+            });
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
+            thread.Join();
+            if (failure != null) throw new Exception("STA form construction failed.", failure);
         }
     }
 }

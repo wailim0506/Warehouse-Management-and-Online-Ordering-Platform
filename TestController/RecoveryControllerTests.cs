@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using LMCIS.controller;
 using LMCIS.controller.Utilities;
 using Xunit;
@@ -7,152 +7,115 @@ namespace TestController
 {
     public class RecoveryControllerTests
     {
-        private readonly RecoveryFakeDatabase _RecoveryFakeDatabase;
-        private readonly FakeAccountController _fakeAccountController;
-        private readonly RecoveryController _recoveryController;
-
-        public RecoveryControllerTests()
-        {
-            _RecoveryFakeDatabase = new RecoveryFakeDatabase();
-            _fakeAccountController = new FakeAccountController();
-            _recoveryController = new RecoveryController(_fakeAccountController, _RecoveryFakeDatabase);
-        }
-
-        
         [Fact]
-        public void ValidateUserDetails_InvalidDetails_ReturnsFalse()
+        public void ValidateUserDetails_IsPureAndRejectsEmptyOrMalformedValues()
         {
-            // Arrange
-            string userId = "LMC00001";
-            string email = "invalid email";
-            string phone = "12345";
+            var validator = new Validator();
+            Assert.True(validator.IsValidEmail("person@example.com"));
+            Assert.False(validator.IsValidEmail(null));
+            Assert.False(validator.IsValidEmail(""));
+            Assert.False(validator.IsValidPhoneNumber(null));
+            Assert.False(validator.IsValidName(""));
 
-            _RecoveryFakeDatabase.SetValidations(true, false, false);
-
-            // Act
-            var result = _recoveryController.ValidateUserDetails(userId, email, phone);
-
-            // Assert
-            Assert.False(result);
-        }
-
-
-
-        [Fact]
-        public void FindUser_InvalidUserDetails_ReturnsFalse()
-        {
-            // Arrange
-            string userId = TestData.invalidId;
-            string email = TestData.invalidEmail;
-            string phone = TestData.invalidPhone;
-
-            _RecoveryFakeDatabase.SetValidations(false, false, false);
-
-            // Act
-            var result = _recoveryController.FindUser(userId, email, phone);
-
-            // Assert
-            Assert.False(result);
-        }
-
-
-
-        
-        [Fact]
-        public void CheckEmail_UniqueEmail_ReturnsTrue()
-        {
-            // Arrange
-            string email = "unique@example.com";
-            _RecoveryFakeDatabase.SetEmailCheckDataTable();
-
-            // Act
-            var result = _recoveryController.CheckEmail(email);
-
-            // Assert
-            Assert.True(result);
+            var db = new RecordingDatabase();
+            var recovery = new RecoveryController(new FakeAccountController(db), db);
+            Assert.True(recovery.ValidateUserDetails("LMC00001", "person@example.com", "12345678901"));
+            Assert.Empty(db.Queries);
         }
 
         [Fact]
-        public void CheckPhone_UniquePhone_ReturnsTrue()
+        public void FindUser_UsesUserDetailsAsBoundParameters()
         {
-            // Arrange
-            string phone = "1234567890";
-            _RecoveryFakeDatabase.SetPhoneCheckDataTable();
+            var db = new RecordingDatabase();
+            db.Query = (sql, parameters) => OneRow("customerID", "LMC00001");
+            var recovery = new RecoveryController(new FakeAccountController(db), db);
 
-            // Act
-            var result = _recoveryController.CheckPhone(phone);
+            Assert.True(recovery.FindUser("LMC00001", "a' OR 1=1 --@example.com", "12345678901"));
+            var query = Assert.Single(db.Queries);
+            Assert.Contains("@id", query.Parameters.Keys);
+            Assert.Equal("LMC00001", query.Parameters["@id"]);
+            Assert.Equal("a' OR 1=1 --@example.com", query.Parameters["@email"]);
+            Assert.DoesNotContain("a' OR 1=1", query.Sql);
+        }
 
-            // Assert
-            Assert.True(result);
+        [Fact]
+        public void FindUser_UnsupportedOrEmptyIdDoesNotQueryDatabase()
+        {
+            var db = new RecordingDatabase();
+            var recovery = new RecoveryController(new FakeAccountController(db), db);
+            Assert.False(recovery.FindUser("", "x@example.com", "12345678901"));
+            Assert.False(recovery.FindUser("BAD00001", "x@example.com", "12345678901"));
+            Assert.Empty(db.Queries);
+        }
+
+        [Fact]
+        public void ChangePassword_UsesBoundValuesAndCustomerTable()
+        {
+            var db = new RecordingDatabase();
+            db.Query = (sql, parameters) => OneRow("customerID", "LMC00001");
+            var recovery = new RecoveryController(new FakeAccountController(db), db);
+            Assert.True(recovery.FindUser("LMC00001", "person@example.com", "12345678901"));
+            Assert.True(recovery.ChangePassword("NewSecurePassword1!"));
+
+            var update = Assert.Single(db.Commands);
+            Assert.Contains("UPDATE customer_account", update.Sql);
+            Assert.Equal("LMC00001", update.Parameters["@id"]);
+            Assert.NotEqual("NewSecurePassword1!", update.Parameters["@password"]);
+        }
+
+        [Fact]
+        public void ChangePassword_IsRejectedAfterFailedOrUnsupportedLookup()
+        {
+            var db = new RecordingDatabase();
+            db.Query = (sql, parameters) => new DataTable();
+            var recovery = new RecoveryController(new FakeAccountController(db), db);
+
+            Assert.False(recovery.FindUser("LMC00001", "wrong@example.com", "12345678901"));
+            Assert.False(recovery.ChangePassword("NewSecurePassword1!"));
+            Assert.False(recovery.FindUser("BAD00001", "person@example.com", "12345678901"));
+            Assert.False(recovery.ChangePassword("NewSecurePassword1!"));
+            Assert.Empty(db.Commands);
+        }
+
+        [Fact]
+        public void FailedLookupAfterSuccessfulLookupRevokesPreviousAuthorization()
+        {
+            var db = new RecordingDatabase();
+            var userExists = true;
+            db.Query = (sql, parameters) => userExists ? OneRow("customerID", "LMC00001") : new DataTable();
+            var recovery = new RecoveryController(new FakeAccountController(db), db);
+
+            Assert.True(recovery.FindUser("LMC00001", "person@example.com", "12345678901"));
+            userExists = false;
+            Assert.False(recovery.FindUser("LMC00001", "wrong@example.com", "12345678901"));
+            Assert.False(recovery.ChangePassword("NewSecurePassword1!"));
+            Assert.Empty(db.Commands);
+        }
+
+        [Fact]
+        public void LoggedInAccountControllerCanChangeItsOwnPasswordWithoutRecoveryLookup()
+        {
+            var db = new RecordingDatabase();
+            var account = new FakeAccountController(db) { IsLogin = true };
+            var recovery = new RecoveryController(account, db);
+
+            Assert.True(recovery.ChangePassword("NewSecurePassword1!"));
+            var update = Assert.Single(db.Commands);
+            Assert.Equal("LMC00001", update.Parameters["@id"]);
+        }
+
+        private static DataTable OneRow(string column, string value)
+        {
+            var table = new DataTable();
+            table.Columns.Add(column);
+            table.Rows.Add(value);
+            return table;
         }
     }
 
-    public partial class RecoveryFakeDatabase : Database
+    internal sealed class FakeAccountController : AccountController
     {
-        private bool _validUsername;
-        private bool _validEmail;
-        private bool _validPhoneNumber;
-        DataTable _dataTable;
-
-        public bool PasswordChanged { get; private set; }
-
-        public void SetValidations(bool validUsername, bool validEmail, bool validPhoneNumber)
-        {
-            _validUsername = validUsername;
-            _validEmail = validEmail;
-            _validPhoneNumber = validPhoneNumber;
-        }
-
-        public void SetFindUserDataTable(string userId, string email, string phone)
-        {
-            _dataTable = new DataTable();
-            _dataTable.Columns.Add("customerID");
-            _dataTable.Columns.Add("phoneNumber");
-            _dataTable.Columns.Add("emailAddress");
-            _dataTable.Rows.Add(userId, phone, email);
-        }
-
-        public void SetCityDataTable()
-        {
-            _dataTable = new DataTable();
-            _dataTable.Columns.Add("city");
-            _dataTable.Rows.Add("City1");
-            _dataTable.Rows.Add("City2");
-        }
-
-        public void SetProvinceDataTable()
-        {
-            _dataTable = new DataTable();
-            _dataTable.Columns.Add("province");
-            _dataTable.Rows.Add("Province1");
-            _dataTable.Rows.Add("Province2");
-        }
-
-        public void SetEmailCheckDataTable()
-        {
-            _dataTable = new DataTable();
-            _dataTable.Columns.Add("emailAddress");
-        }
-
-        public void SetPhoneCheckDataTable()
-        {
-            _dataTable = new DataTable();
-            _dataTable.Columns.Add("phoneNumber");
-        }
-    }
-
-    public class FakeAccountController : AccountController
-    {
-        private string _uid;
-
-        public void SetUid(string uid)
-        {
-            _uid = uid;
-        }
-
-        public override string GetUid()
-        {
-            return _uid;
-        }
+        public FakeAccountController(RecordingDatabase database) : base(database) { }
+        public override string GetUid() => "LMC00001";
     }
 }

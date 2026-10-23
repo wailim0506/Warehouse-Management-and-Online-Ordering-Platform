@@ -1,161 +1,147 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using LMCIS.controller;
-using LMCIS.controller.Utilities;
 using Xunit;
 
 namespace TestController
 {
     public class AccountControllerTests
     {
-        private readonly FakeDatabaseAccount _FakeDatabaseAccount;
-        private readonly FakeUIController _fakeUIController;
-        private readonly AccountController _accountController;
+        private const string UserId = "LMC00001";
+        private const string Password = "secret";
 
-        public AccountControllerTests()
-        {
-            _FakeDatabaseAccount = new FakeDatabaseAccount();
-
-            _accountController = new AccountController(_FakeDatabaseAccount);
-            _fakeUIController = new FakeUIController(_accountController);
-        }
-
-        
         [Fact]
-        public void Login_InvalidCredentials_ReturnsFalse()
+        public void Login_ActiveAccount_SetsIdentityAndUsesBoundUserId()
         {
-            // Arrange
-            string userId = "LMC00001";
-            string password = "invalidPassword";
-            _FakeDatabaseAccount.SetAccountData(userId, "storedPassword", "active");
+            var db = new RecordingDatabase();
+            db.Query = (sql, parameters) =>
+            {
+                if (sql.Contains("SELECT password, status")) return AccountRow(BCrypt.Net.BCrypt.HashPassword(Password), "active");
+                if (sql.Contains("SELECT isLM")) return Table("isLM", "N");
+                if (sql.Contains("SELECT customerAccountID")) return UserRow("CA1", "Ada", "Lovelace");
+                return new DataTable();
+            };
+            var controller = new AccountController(db);
+            var ui = new FakeUIController(controller, db);
 
-            // Act
-            var result = _accountController.Login(userId, password, _fakeUIController);
-
-            // Assert
-            Assert.False(result);
-            Assert.False(_accountController.IsLogin);
+            Assert.True(controller.Login(UserId, Password, ui));
+            Assert.True(controller.IsLogin);
+            Assert.Equal(UserId, controller.GetUid());
+            Assert.Equal("Lovelace Ada", controller.GetName());
+            Assert.Contains(db.Queries, q => q.Parameters.ContainsKey("@uid") && (string)q.Parameters["@uid"] == UserId);
         }
 
         [Fact]
-        public void Login_AccountNotFound_ReturnsFalse()
+        public void Login_WrongPassword_ReturnsFalseWithoutChangingLoginState()
         {
-            // Arrange
-            string userId = "LMC00001";
-            string password = "password";
-
-            // Act
-            var result = _accountController.Login(userId, password, _fakeUIController);
-
-            // Assert
-            Assert.False(result);
-            Assert.False(_accountController.IsLogin);
+            var controller = NewController("active", Password, out var db);
+            Assert.False(controller.Login(UserId, "wrong", new FakeUIController(controller, db)));
+            Assert.False(controller.IsLogin);
         }
 
         [Fact]
-        public void Login_AccountInactive_ReturnsFalse()
+        public void Login_MissingOrDisabledAccount_ReturnsFalse()
         {
-            // Arrange
-            string userId = "LMC00001";
-            string password = "password";
-            _FakeDatabaseAccount.SetAccountData(userId, password, "inactive");
+            var missingDb = new RecordingDatabase();
+            var missing = new AccountController(missingDb);
+            Assert.False(missing.Login(UserId, Password, new FakeUIController(missing, missingDb)));
 
-            // Act
-            var result = _accountController.Login(userId, password, _fakeUIController);
-
-            // Assert
-            Assert.False(result);
-            Assert.False(_accountController.IsLogin);
+            var disabled = NewController("disable", Password, out var disabledDb);
+            Assert.False(disabled.Login(UserId, Password, new FakeUIController(disabled, disabledDb)));
+            Assert.False(disabled.IsLogin);
         }
-        
+
         [Fact]
-        public void DelAccount_DisablesAccount()
+        public void Login_FailedAttemptAfterSuccessClearsLoginState()
         {
-            // Arrange
-            string userId = "LMC00001";
-            _FakeDatabaseAccount.SetUserInfo(userId, "John", "Doe");
+            var controller = NewController("active", Password, out var db);
+            var ui = new FakeUIController(controller, db);
+            Assert.True(controller.Login(UserId, Password, ui));
+            Assert.False(controller.Login(UserId, "wrong", ui));
+            Assert.False(controller.IsLogin);
+        }
 
-            // Act
-            _accountController.Login(userId, "password", _fakeUIController);
-            var result = _accountController.DelAccount();
+        [Fact]
+        public void Login_PermissionSetupFailureClearsPartialAuthenticationState()
+        {
+            var controller = NewController("active", Password, out var db);
 
-            // Assert
-            Assert.True(result);
-            Assert.True(_FakeDatabaseAccount.AccountDisabled);
+            Assert.False(controller.Login(UserId, Password, new ThrowingUIController(controller, db)));
+            Assert.False(controller.IsLogin);
+            Assert.Null(controller.GetUid());
+        }
+
+        [Fact]
+        public void DelAccount_DisablesCurrentCustomerAccount()
+        {
+            var db = new RecordingDatabase();
+            db.Query = (sql, parameters) => sql.Contains("SELECT password, status")
+                ? AccountRow(BCrypt.Net.BCrypt.HashPassword(Password), "active")
+                : sql.Contains("SELECT isLM") ? Table("isLM", "N")
+                : sql.Contains("SELECT customerAccountID") ? UserRow("CA1", "Ada", "Lovelace")
+                : new DataTable();
+            var controller = new AccountController(db);
+            Assert.True(controller.Login(UserId, Password, new FakeUIController(controller, db)));
+
+            Assert.True(controller.DelAccount());
+            var update = Assert.Single(db.Commands, c => c.Sql.Contains("UPDATE customer_account"));
+            Assert.Equal("CA1", update.Parameters["@accountID"]);
+        }
+
+        private static AccountController NewController(string status, string password, out RecordingDatabase db)
+        {
+            db = new RecordingDatabase();
+            db.Query = (sql, parameters) => sql.Contains("SELECT password, status")
+                ? AccountRow(BCrypt.Net.BCrypt.HashPassword(password), status)
+                : sql.Contains("SELECT isLM") ? Table("isLM", "N")
+                : sql.Contains("SELECT customerAccountID") ? UserRow("CA1", "Ada", "Lovelace")
+                : new DataTable();
+            return new AccountController(db);
+        }
+
+        private static DataTable AccountRow(string hash, string status)
+        {
+            var table = new DataTable();
+            table.Columns.Add("password");
+            table.Columns.Add("status");
+            table.Rows.Add(hash, status);
+            return table;
+        }
+
+        private static DataTable UserRow(string accountId, string first, string last)
+        {
+            var table = new DataTable();
+            table.Columns.Add("accountID");
+            table.Columns.Add("firstName");
+            table.Columns.Add("lastName");
+            table.Rows.Add(accountId, first, last);
+            return table;
+        }
+
+        private static DataTable Table(string column, string value)
+        {
+            var table = new DataTable();
+            table.Columns.Add(column);
+            table.Rows.Add(value);
+            return table;
         }
     }
 
-    public partial class FakeDatabaseAccount : Database
+    internal sealed class FakeUIController : UIController
     {
-        public DataTable _dataTable;
-        private string _storedPassword;
-        private string _accountStatus;
-
-        public bool LogSet { get; private set; }
-        public bool AccountDisabled { get; private set; }
-
-        public void SetAccountData(string userId, string password, string status)
-        {
-            _dataTable = new DataTable();
-            _dataTable.Columns.Add("password");
-            _dataTable.Columns.Add("status");
-            _dataTable.Rows.Add(BCrypt.Net.BCrypt.HashPassword(password), status == "active" ? "active" : "inactive");
-            _storedPassword = password;
-            _accountStatus = status;
-        }
-
-        public void SetUserInfo(string userId, string firstName, string lastName)
-        {
-            _dataTable = new DataTable();
-            _dataTable.Columns.Add("firstName");
-            _dataTable.Columns.Add("lastName");
-            _dataTable.Columns.Add("accountID");
-            _dataTable.Rows.Add(firstName, lastName, "accountID");
-        }
-
-        public void SetLogData(string userId, string lastLoginDate)
-        {
-            _dataTable = new DataTable();
-            _dataTable.Columns.Add("loginDate");
-            _dataTable.Rows.Add(lastLoginDate);
-        }
-
-        public void SetPwdChangeData(string userId, DateTime pwdChangeDate)
-        {
-            _dataTable = new DataTable();
-            _dataTable.Columns.Add("pwdChangeDate");
-            _dataTable.Rows.Add(pwdChangeDate);
-        }
-
-        public override DataTable ExecuteDataTable(string sqlStr, Dictionary<string, object> queryParameters = null)
-        {
-            return _dataTable;
-        }
-
-        public override void ExecuteNonQueryCommand(string sqlStr, Dictionary<string, object> queryParameters = null)
-        {
-            if (sqlStr.Contains("INSERT INTO"))
-            {
-                LogSet = true;
-            }
-
-            if (sqlStr.Contains("UPDATE customer_account SET Status = 'disable'"))
-            {
-                AccountDisabled = true;
-            }
-        }
+        public FakeUIController(AccountController accountController, RecordingDatabase database) : base(accountController, database) { }
+        public override void SetPermission(string userId) { }
     }
 
-    public class FakeUIController : UIController
+    internal sealed class ThrowingUIController : UIController
     {
+        public ThrowingUIController(AccountController accountController, RecordingDatabase database)
+            : base(accountController, database) { }
+
         public override void SetPermission(string userId)
         {
-            // No-op for fake implementation
-        }
-
-        public FakeUIController(AccountController accountController, Database db = null) : base(accountController, db)
-        {
+            throw new InvalidOperationException("Injected permission lookup failure.");
         }
     }
 }
